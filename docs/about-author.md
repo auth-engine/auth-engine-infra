@@ -121,7 +121,7 @@ Platform operators onboard tenants, issue keys for trusted services, and review 
 ## 5. About me
 
 **Niranjan Kumar**  
-GitHub: [@Q-Niranjan](https://github.com/Q-Niranjan)
+GitHub: [@auth-engine](https://github.com/auth-engine) · [@Q-Niranjan](https://github.com/Q-Niranjan)
 
 Creator and maintainer of AuthEngine and this documentation.
 

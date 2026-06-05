@@ -30,7 +30,7 @@ Production uses a **hybrid layout**: AWS for compute (EC2) and PostgreSQL (RDS);
 | Layer | Provider | Notes |
 |-------|----------|-------|
 | API | EC2 Docker (`authengine-api`) | Image `qniranjan01/authengine` on port 8000 |
-| Frontend | EC2 Docker (`authengine-frontend`) | Image `qniranjan01/authengine-frontend` on port 3000 |
+| Dashboard | EC2 Docker (`authengine-dashboard`) | Image `qniranjan01/authengine-dashboard` on port 3000 |
 | PostgreSQL | AWS RDS (`db.t4g.micro`) | Terraform-managed |
 | Redis | Upstash | `rediss://` URL in `/opt/authengine/.env` |
 | MongoDB | Atlas M0 | Audit logs; URI must include `/authengine` in path |
@@ -44,7 +44,7 @@ flowchart LR
     users["Users"]
     nginx["nginx on EC2"]
     api["authengine-api :8000"]
-    fe["authengine-frontend :3000"]
+    fe["authengine-dashboard :3000"]
     rds["RDS PostgreSQL"]
     redis["Upstash Redis"]
     atlas["MongoDB Atlas"]
@@ -72,7 +72,7 @@ terraform apply
 - VPC with public subnet
 - EC2 instance (`t4g.micro`) + Elastic IP
 - RDS PostgreSQL (`db.t4g.micro`)
-- ECR repositories: `authengine-api`, `authengine-frontend`
+- ECR repository: `authengine-api` (optional; production uses Docker Hub `qniranjan01/authengine` and `qniranjan01/authengine-dashboard`)
 - Security groups (API, RDS, optional SSH)
 - IAM role for EC2 (ECR pull, SSM)
 
@@ -141,7 +141,7 @@ docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-Images: Docker Hub `qniranjan01/authengine` and `qniranjan01/authengine-frontend`. Override tag with `AUTHENGINE_IMAGE_TAG` / `AUTHENGINE_FRONTEND_IMAGE_TAG`.
+Images: Docker Hub `qniranjan01/authengine` and `qniranjan01/authengine-dashboard`. Set `DOCKERHUB_USERNAME=qniranjan01` in GitHub Actions secrets. Override tag with `AUTHENGINE_IMAGE_TAG` / `AUTHENGINE_FRONTEND_IMAGE_TAG`.
 
 ### 4.4 Migrations
 
@@ -257,7 +257,7 @@ NEXT_PUBLIC_API_URL=https://api.authengine.org/api/v1
 NEXT_PUBLIC_APP_URL=https://app.authengine.org
 ```
 
-Set these in `auth-engine-frontend` GitHub Actions variables or Dockerfile build args before `docker compose pull`.
+Set these in `auth-engine-dashboard` GitHub Actions variables or Dockerfile build args before `docker compose pull`.
 
 ## 8. Phase 7 — CI/CD release
 
@@ -275,22 +275,22 @@ All workflows are **manual** (`workflow_dispatch`) unless you enable `on:` trigg
 
 **Secrets:** `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`
 
-### auth-engine-frontend
+### auth-engine-dashboard
 
 | Workflow | Purpose |
 |----------|---------|
-| auth-engine-frontend · Lint and Build | CI |
-| auth-engine-frontend · Create Version Tag | Git tag |
-| auth-engine-frontend · Build and Push Docker Image | Push to Docker Hub |
-| auth-engine-frontend · Create GitHub Release | Release notes |
-| auth-engine-frontend · Register Production Deployment | Deployment record |
+| auth-engine-dashboard · Lint and Build | CI |
+| auth-engine-dashboard · Create Version Tag | Git tag |
+| auth-engine-dashboard · Build and Push Docker Image | Push to Docker Hub |
+| auth-engine-dashboard · Create GitHub Release | Release notes |
+| auth-engine-dashboard · Register Production Deployment | Deployment record |
 
 ### 8.1 Full release order
 
 1. **auth-engine-infra · Terraform Plan** → **Terraform Apply**
 2. Configure Atlas + Upstash; write `/opt/authengine/.env`
 3. **auth-engine:** CI → Tag → Build/Push → `docker compose pull` on EC2 → migrate
-4. **auth-engine-frontend:** CI → Tag → Build/Push → `docker compose pull` on EC2
+4. **auth-engine-dashboard:** CI → Tag → Build/Push → `docker compose pull` on EC2
 5. Register deployments; publish docs (Phase 8 below)
 
 ---
@@ -306,12 +306,12 @@ Docs are **MkDocs Material** Markdown in `auth-engine-infra/docs/`, built by Git
 
 ### 9.1 Enable GitHub Pages (GitHub Actions)
 
-1. Open [auth-engine-infra Settings → Pages](https://github.com/Q-Niranjan/auth-engine-infra/settings/pages)
+1. Open [auth-engine-infra Settings → Pages](https://github.com/auth-engine/auth-engine-infra/settings/pages)
 2. **Build and deployment** → Source: **GitHub Actions** (not “Deploy from a branch”)
 3. Push to `main` or run workflow **auth-engine-infra · Deploy docs** manually
 4. Wait for the workflow to finish under **Actions**
 
-After a successful deploy the site is available at `https://q-niranjan.github.io/auth-engine-infra/` (interim URL).
+After a successful deploy the site is available at `https://auth-engine.github.io/auth-engine-infra/` (interim URL).
 
 ### 9.2 Custom domain
 
@@ -322,7 +322,7 @@ After a successful deploy the site is available at `https://q-niranjan.github.io
 
 | Type | Host | Value |
 |------|------|--------|
-| CNAME | `docs` | `q-niranjan.github.io` |
+| CNAME | `docs` | `auth-engine.github.io` |
 
 Use **CNAME only** for `docs` — do not add an A record for the same host.
 

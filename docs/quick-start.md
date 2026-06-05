@@ -45,7 +45,7 @@ docker compose up -d --build
 | Swagger | [http://localhost:8000/docs](http://localhost:8000/docs) |
 | Frontend | [http://localhost:3000](http://localhost:3000) |
 
-Images build from GitHub (`Q-Niranjan/auth-engine`, `Q-Niranjan/auth-engine-frontend`) unless you override `AUTH_ENGINE_SRC` / `AUTH_ENGINE_FRONTEND_SRC` in `.env`.
+Images build from GitHub (`auth-engine/auth-engine`, `auth-engine/auth-engine-dashboard`) unless you override `AUTH_ENGINE_SRC` / `AUTH_ENGINE_FRONTEND_SRC` in `.env`.
 
 ---
 
@@ -89,7 +89,7 @@ auth-engine migrate
 auth-engine run
 ```
 
-**Frontend** — `auth-engine-frontend`:
+**Dashboard** — `auth-engine-dashboard`:
 
 ```bash
 cp .env.example .env.local

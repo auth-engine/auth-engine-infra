@@ -1,6 +1,6 @@
 # auth-engine-infra
 
-Infrastructure and **canonical documentation** for the [AuthEngine](https://github.com/Q-Niranjan/auth-engine) platform.
+Infrastructure and **canonical documentation** for the [AuthEngine](https://github.com/auth-engine/auth-engine) platform.
 
 This repository holds AWS Terraform, Docker Compose manifests, and all user-facing guides. Application source code lives in the other two repositories.
 
@@ -26,6 +26,6 @@ This repository holds AWS Terraform, Docker Compose manifests, and all user-faci
 
 | Repository | Role |
 |------------|------|
-| [auth-engine](https://github.com/Q-Niranjan/auth-engine) | FastAPI backend — IAM, OIDC, introspection |
-| [auth-engine-frontend](https://github.com/Q-Niranjan/auth-engine-frontend) | Next.js admin dashboard |
-| [auth-engine-infra](https://github.com/Q-Niranjan/auth-engine-infra) | This repo — Terraform, Compose, docs |
+| [auth-engine](https://github.com/auth-engine/auth-engine) | FastAPI backend — IAM, OIDC, introspection |
+| [auth-engine-dashboard](https://github.com/auth-engine/auth-engine-dashboard) | Next.js admin dashboard |
+| [auth-engine-infra](https://github.com/auth-engine/auth-engine-infra) | This repo — Terraform, Compose, docs |

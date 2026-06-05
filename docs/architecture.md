@@ -53,7 +53,7 @@ flowchart TB
 | Component | Repository | Responsibility |
 |-----------|------------|----------------|
 | API service | `auth-engine` | Auth, RBAC, OIDC, tenant config, introspection |
-| Dashboard | `auth-engine-frontend` | Platform/tenant admin UI, user self-service |
+| Dashboard | `auth-engine-dashboard` | Platform/tenant admin UI, user self-service |
 | Infrastructure | `auth-engine-infra` | Terraform, Docker Compose, VPC, EC2, RDS, documentation |
 
 ## 3. Backend internal architecture

@@ -2,7 +2,7 @@ services:
   api:
     image: qniranjan01/authengine:${AUTHENGINE_IMAGE_TAG:-1.0.0}
     build:
-      context: ${AUTH_ENGINE_SRC:-https://github.com/Q-Niranjan/auth-engine.git#main}
+      context: ${AUTH_ENGINE_SRC:-https://github.com/auth-engine/auth-engine.git#main}
       dockerfile: Dockerfile
     container_name: authengine-api
     ports:
@@ -27,14 +27,14 @@ services:
       - authengine-network
 
   frontend:
-    image: qniranjan01/authengine-frontend:${AUTHENGINE_FRONTEND_IMAGE_TAG:-1.0.0}
+    image: qniranjan01/authengine-dashboard:${AUTHENGINE_FRONTEND_IMAGE_TAG:-1.0.0}
     build:
-      context: ${AUTH_ENGINE_FRONTEND_SRC:-https://github.com/Q-Niranjan/auth-engine-frontend.git#main}
+      context: ${AUTH_ENGINE_FRONTEND_SRC:-https://github.com/auth-engine/auth-engine-dashboard.git#main}
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
-    container_name: authengine-frontend
+    container_name: authengine-dashboard
     ports:
       - "3000:3000"
     environment:

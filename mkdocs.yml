@@ -5,14 +5,14 @@ exclude_docs: |
   README.md
 site_description: AuthEngine platform documentation — deployment, architecture, API, and security
 site_url: https://docs.authengine.org
-repo_url: https://github.com/Q-Niranjan/auth-engine-infra
+repo_url: https://github.com/auth-engine/auth-engine-infra
 repo_name: auth-engine-infra
 edit_uri: edit/main/docs/
 
 copyright: >
   &copy; 2026
-  <a href="https://github.com/Q-Niranjan" target="_blank" rel="noopener">Niranjan Kumar</a>
-  · AuthEngine
+  <a href="https://github.com/auth-engine" target="_blank" rel="noopener">AuthEngine</a>
+  · Niranjan Kumar
 
 theme:
   name: material

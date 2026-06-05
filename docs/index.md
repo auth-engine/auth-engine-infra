@@ -96,9 +96,9 @@ Follow this order based on your goal:
 
 | Repository | Purpose |
 |------------|---------|
-| [auth-engine](https://github.com/Q-Niranjan/auth-engine) | Identity backend |
-| [auth-engine-frontend](https://github.com/Q-Niranjan/auth-engine-frontend) | Admin dashboard |
-| [auth-engine-infra](https://github.com/Q-Niranjan/auth-engine-infra) | Deployment and documentation |
+| [auth-engine](https://github.com/auth-engine/auth-engine) | Identity backend |
+| [auth-engine-dashboard](https://github.com/auth-engine/auth-engine-dashboard) | Admin dashboard |
+| [auth-engine-infra](https://github.com/auth-engine/auth-engine-infra) | Deployment and documentation |
 
 ---
 
