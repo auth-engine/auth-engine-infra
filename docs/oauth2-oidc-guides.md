@@ -11,7 +11,7 @@ AuthEngine provides two OAuth-related capabilities:
 1. **OAuth2 social login** — users sign in with Google, GitHub, or Microsoft; AuthEngine issues its own JWTs.
 2. **OpenID Connect provider** — third-party apps use AuthEngine as an IdP via standard OIDC flows.
 
-**Base URL:** `https://api.bestcrmhub.com/api/v1` (local: `http://localhost:8000/api/v1`)
+**Base URL:** `https://api.authengine.org/api/v1` (local: `http://localhost:8000/api/v1`)
 
 !!! abstract "Contents"
     **Part A** Social login → **Part B** OIDC provider → **Part C** Service introspection
@@ -55,7 +55,7 @@ sequenceDiagram
 Set provider credentials in backend `.env` (see `.env.example`). Production callback pattern:
 
 ```text
-https://api.bestcrmhub.com/api/v1/auth/oauth/{provider}/callback
+https://api.authengine.org/api/v1/auth/oauth/{provider}/callback
 ```
 
 Leave `CLIENT_ID` empty to disable a provider.
@@ -93,7 +93,7 @@ Alias (same payload):
 GET /api/v1/oidc/openid-configuration
 ```
 
-Example production URL: `https://api.bestcrmhub.com/.well-known/openid-configuration`
+Example production URL: `https://api.authengine.org/.well-known/openid-configuration`
 
 Key fields in the discovery document:
 
@@ -111,7 +111,7 @@ Key fields in the discovery document:
 
 Public keys: `GET /.well-known/jwks.json`
 
-Set `APP_URL` in production so discovery URLs match your public IdP host (e.g. `https://auth.bestcrmhub.com` when reverse-proxied).
+Set `APP_URL` in production so discovery URLs match your public IdP host (e.g. `https://auth.authengine.org` when reverse-proxied).
 
 ### Dynamic client registration
 

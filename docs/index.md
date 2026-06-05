@@ -82,10 +82,11 @@ Follow this order based on your goal:
 
 | Host | Role |
 |------|------|
-| [api.bestcrmhub.com](https://api.bestcrmhub.com) | REST API · [Swagger](https://api.bestcrmhub.com/docs) |
-| [auth.bestcrmhub.com](https://auth.bestcrmhub.com) | Login and identity provider |
-| [app.bestcrmhub.com](https://app.bestcrmhub.com) | Admin dashboard |
-| [docs.bestcrmhub.com](https://docs.bestcrmhub.com) | This documentation |
+| [authengine.org](https://authengine.org) | Product home (redirects to app) |
+| [api.authengine.org](https://api.authengine.org) | REST API · [Swagger](https://api.authengine.org/docs) |
+| [auth.authengine.org](https://auth.authengine.org) | Login and identity provider |
+| [app.authengine.org](https://app.authengine.org) | Admin dashboard |
+| [docs.authengine.org](https://docs.authengine.org) | This documentation |
 
 **Local:** API `http://localhost:8000` · Dashboard `http://localhost:3000`
 
@@ -105,9 +106,9 @@ Follow this order based on your goal:
 
 | Endpoint | URL |
 |----------|-----|
-| OIDC discovery | `GET https://api.bestcrmhub.com/.well-known/openid-configuration` |
-| JWKS | `GET https://api.bestcrmhub.com/.well-known/jwks.json` |
-| Token introspect | `POST https://api.bestcrmhub.com/api/v1/platform/service-keys/introspect` |
-| Health | `GET https://api.bestcrmhub.com/api/v1/health` |
+| OIDC discovery | `GET https://api.authengine.org/.well-known/openid-configuration` |
+| JWKS | `GET https://api.authengine.org/.well-known/jwks.json` |
+| Token introspect | `POST https://api.authengine.org/api/v1/platform/service-keys/introspect` |
+| Health | `GET https://api.authengine.org/api/v1/health` |
 
 Introspection requires header `X-API-Key: ae_sk_<hex>`.

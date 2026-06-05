@@ -89,7 +89,7 @@ variable "docs_subdomain" {
 }
 
 variable "root_domain" {
-  description = "Root domain for documentation outputs (e.g. bestcrmhub.com)"
+  description = "Root domain for documentation outputs (e.g. authengine.org)"
   type        = string
-  default     = "bestcrmhub.com"
+  default     = "authengine.org"
 }

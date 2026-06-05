@@ -6,8 +6,8 @@ author: Niranjan
 
 # API Reference
 
-**Base URL:** `https://api.bestcrmhub.com/api/v1`  
-**Interactive docs:** [https://api.bestcrmhub.com/docs](https://api.bestcrmhub.com/docs)  
+**Base URL:** `https://api.authengine.org/api/v1`  
+**Interactive docs:** [https://api.authengine.org/docs](https://api.authengine.org/docs)  
 **OpenAPI JSON:** `/api/v1/openapi.json`
 
 !!! abstract "Sections"

@@ -19,10 +19,11 @@ Production uses a **hybrid layout**: AWS for compute (EC2) and PostgreSQL (RDS);
 
 | Host | Role | Backend |
 |------|------|---------|
-| [api.bestcrmhub.com](https://api.bestcrmhub.com) | REST API, Swagger, `/.well-known` | nginx → `localhost:8000` |
-| [auth.bestcrmhub.com](https://auth.bestcrmhub.com) | OIDC login UI and IdP endpoints | nginx → `localhost:8000` (same API process) |
-| [app.bestcrmhub.com](https://app.bestcrmhub.com) | Admin dashboard | nginx → `localhost:3000` |
-| [docs.bestcrmhub.com](https://docs.bestcrmhub.com) | This documentation | MkDocs on GitHub Pages |
+| [authengine.org](https://authengine.org) | Product home | nginx → redirect to `app` |
+| [api.authengine.org](https://api.authengine.org) | REST API, Swagger, `/.well-known` | nginx → `localhost:8000` |
+| [auth.authengine.org](https://auth.authengine.org) | OIDC login UI and IdP endpoints | nginx → `localhost:8000` (same API process) |
+| [app.authengine.org](https://app.authengine.org) | Admin dashboard | nginx → `localhost:3000` |
+| [docs.authengine.org](https://docs.authengine.org) | This documentation | MkDocs on GitHub Pages |
 
 ## 1. Architecture overview
 
@@ -81,7 +82,7 @@ Key outputs: `ec2_public_ip`, RDS endpoint (see `outputs.tf`).
 |----------|---------|---------|
 | `aws_region` | `ap-south-1` | Region |
 | `project_name` | `authengine` | Resource name prefix |
-| `root_domain` | `bestcrmhub.com` | DNS reference |
+| `root_domain` | `authengine.org` | DNS reference |
 | `db_password` | (required) | RDS master password |
 
 **GitHub Actions:** `auth-engine-infra · Terraform Plan` → review → `auth-engine-infra · Terraform Apply`
@@ -92,10 +93,14 @@ Point all application hosts at the EC2 Elastic IP from `terraform output ec2_pub
 
 | Host | Type | Target |
 |------|------|--------|
+| `@` | A | EC2 Elastic IP (apex `authengine.org` → redirect to app) |
+| `www` | A | Same Elastic IP (optional) |
 | `api` | A | EC2 Elastic IP |
 | `auth` | A | Same Elastic IP |
 | `app` | A | Same Elastic IP |
-| `docs` | CNAME | GitHub Pages or Cloudflare Pages |
+| `docs` | CNAME | `q-niranjan.github.io` (GitHub Pages) |
+
+Registrar: **Spaceship** (or any DNS host for `authengine.org`). Use TTL **300** during migration.
 
 ## 4. Phase 3 — EC2 application setup
 
@@ -114,8 +119,8 @@ Required variables: `SECRET_KEY`, `JWT_SECRET_KEY`, `POSTGRES_URL`, `MONGODB_URL
 
 | Variable | Production value |
 |----------|------------------|
-| `APP_URL` | `https://auth.bestcrmhub.com` |
-| `CORS_ORIGINS` | `["https://app.bestcrmhub.com"]` |
+| `APP_URL` | `https://auth.authengine.org` |
+| `CORS_ORIGINS` | `["https://app.authengine.org"]` |
 | `MONGODB_URL` | Must include `/authengine` in the path (not `/?appName=...` only) |
 | `REDIS_URL` | `rediss://` (Upstash TLS) |
 
@@ -152,9 +157,13 @@ Run once per release after pulling a new API image.
 
 Create `/etc/nginx/conf.d/authengine.conf` on EC2:
 
+Start with **HTTP only** (so nginx passes `nginx -t` before certs exist):
+
 ```nginx
+# API + Auth → :8000
 server {
-    server_name api.bestcrmhub.com auth.bestcrmhub.com;
+    listen 80;
+    server_name api.authengine.org auth.authengine.org;
 
     location / {
         proxy_pass http://127.0.0.1:8000;
@@ -163,30 +172,12 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
-
-    listen 443 ssl; # managed by Certbot
-    ssl_certificate /etc/letsencrypt/live/api.bestcrmhub.com/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/api.bestcrmhub.com/privkey.pem; # managed by Certbot
-    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 }
 
+# Frontend → :3000
 server {
-    if ($host = auth.bestcrmhub.com) {
-        return 301 https://$host$request_uri;
-    } # managed by Certbot
-
-    if ($host = api.bestcrmhub.com) {
-        return 301 https://$host$request_uri;
-    } # managed by Certbot
-
     listen 80;
-    server_name api.bestcrmhub.com auth.bestcrmhub.com;
-    return 404; # managed by Certbot
-}
-
-server {
-    server_name app.bestcrmhub.com;
+    server_name app.authengine.org;
 
     location / {
         proxy_pass http://127.0.0.1:3000;
@@ -195,22 +186,13 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
-
-    listen 443 ssl; # managed by Certbot
-    ssl_certificate /etc/letsencrypt/live/app.bestcrmhub.com/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/app.bestcrmhub.com/privkey.pem; # managed by Certbot
-    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
-    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 }
 
+# Apex → app
 server {
-    if ($host = app.bestcrmhub.com) {
-        return 301 https://$host$request_uri;
-    } # managed by Certbot
-
     listen 80;
-    server_name app.bestcrmhub.com;
-    return 404; # managed by Certbot
+    server_name authengine.org www.authengine.org;
+    return 301 https://app.authengine.org$request_uri;
 }
 ```
 
@@ -221,17 +203,33 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-Issue certificates (if not already done by certbot):
+Issue certificates (certbot adds `listen 443 ssl` blocks):
 
 ```bash
-sudo certbot --nginx -d api.bestcrmhub.com -d auth.bestcrmhub.com
-sudo certbot --nginx -d app.bestcrmhub.com
+sudo certbot --nginx -d api.authengine.org -d auth.authengine.org
+sudo certbot --nginx -d app.authengine.org
+sudo certbot --nginx -d authengine.org -d www.authengine.org
 ```
 
-Certbot may append the `listen 443 ssl` and HTTP redirect blocks shown above. Verify with:
+After certs exist, ensure the apex block redirects over HTTPS:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name authengine.org www.authengine.org;
+    ssl_certificate /etc/letsencrypt/live/authengine.org/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/authengine.org/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+    return 301 https://app.authengine.org$request_uri;
+}
+```
+
+Verify:
 
 ```bash
 sudo cat /etc/nginx/conf.d/authengine.conf
+curl -I https://authengine.org
 ```
 
 ## 6. Phase 5 — OAuth redirect URIs
@@ -239,15 +237,15 @@ sudo cat /etc/nginx/conf.d/authengine.conf
 Register in each provider console:
 
 ```text
-https://api.bestcrmhub.com/api/v1/auth/oauth/google/callback
-https://api.bestcrmhub.com/api/v1/auth/oauth/github/callback
-https://api.bestcrmhub.com/api/v1/auth/oauth/microsoft/callback
+https://api.authengine.org/api/v1/auth/oauth/google/callback
+https://api.authengine.org/api/v1/auth/oauth/github/callback
+https://api.authengine.org/api/v1/auth/oauth/microsoft/callback
 ```
 
 AuthEngine-as-provider callback for the dashboard:
 
 ```text
-https://app.bestcrmhub.com/oauth/authengine/callback
+https://app.authengine.org/oauth/authengine/callback
 ```
 
 ## 7. Phase 6 — Frontend build variables
@@ -255,8 +253,8 @@ https://app.bestcrmhub.com/oauth/authengine/callback
 Baked into the Docker image at CI build time:
 
 ```env
-NEXT_PUBLIC_API_URL=https://api.bestcrmhub.com/api/v1
-NEXT_PUBLIC_APP_URL=https://app.bestcrmhub.com
+NEXT_PUBLIC_API_URL=https://api.authengine.org/api/v1
+NEXT_PUBLIC_APP_URL=https://app.authengine.org
 ```
 
 Set these in `auth-engine-frontend` GitHub Actions variables or Dockerfile build args before `docker compose pull`.
@@ -297,7 +295,7 @@ All workflows are **manual** (`workflow_dispatch`) unless you enable `on:` trigg
 
 ---
 
-## 9. Phase 8 — Documentation site (`docs.bestcrmhub.com`)
+## 9. Phase 8 — Documentation site (`docs.authengine.org`)
 
 Docs are **MkDocs Material** Markdown in `auth-engine-infra/docs/`, built by GitHub Actions (`.github/workflows/docs-deploy.yml`). They are **not** served from EC2 — do **not** run certbot for `docs` on the instance. TLS is handled by **GitHub Pages**.
 
@@ -317,8 +315,8 @@ After a successful deploy the site is available at `https://q-niranjan.github.io
 
 ### 9.2 Custom domain
 
-1. In the same Pages settings, **Custom domain** → enter `docs.bestcrmhub.com`
-2. Save — `docs/CNAME` in the repo should contain `docs.bestcrmhub.com`
+1. In the same Pages settings, **Custom domain** → enter `docs.authengine.org`
+2. Save — `docs/CNAME` in the repo should contain `docs.authengine.org`
 
 ### 9.3 DNS (Namecheap)
 
@@ -339,17 +337,17 @@ Wait 15–60 minutes for propagation.
 ### 9.5 Verify docs site
 
 ```bash
-dig +short docs.bestcrmhub.com
-curl -I https://docs.bestcrmhub.com
+dig +short docs.authengine.org
+curl -I https://docs.authengine.org
 ```
 
 Expected: DNS → `q-niranjan.github.io`, `HTTP/2 200`, padlock in browser.
 
 Open:
 
-- https://docs.bestcrmhub.com
-- https://docs.bestcrmhub.com/deployment/
-- https://docs.bestcrmhub.com/architecture/
+- https://docs.authengine.org
+- https://docs.authengine.org/deployment/
+- https://docs.authengine.org/architecture/
 
 ### 9.6 Updating docs
 
@@ -368,7 +366,7 @@ Open `http://127.0.0.1:8000` before pushing.
 
 | Host | TLS provider | Command |
 |------|----------------|---------|
-| `api`, `auth`, `app` | EC2 nginx + **certbot** | `sudo certbot --nginx -d api.bestcrmhub.com ...` |
+| `api`, `auth`, `app` | EC2 nginx + **certbot** | `sudo certbot --nginx -d api.authengine.org ...` |
 | `docs` | **GitHub Pages** | Enable **Enforce HTTPS** in repo settings — no certbot |
 
 Pointing `docs` at EC2 and running certbot there will conflict with GitHub Pages.
@@ -377,7 +375,7 @@ Pointing `docs` at EC2 and running certbot there will conflict with GitHub Pages
 
 | Problem | Likely cause | Fix |
 |---------|--------------|-----|
-| Browser shows **Not secure** | Using `http://` or HTTPS not enabled yet | Open `https://docs.bestcrmhub.com`; enable **Enforce HTTPS** |
+| Browser shows **Not secure** | Using `http://` or HTTPS not enabled yet | Open `https://docs.authengine.org`; enable **Enforce HTTPS** |
 | **Enforce HTTPS** greyed out | DNS not verified | Fix CNAME `docs` → `q-niranjan.github.io`; wait; re-save custom domain |
 | 404 on custom domain | Pages not built or wrong source | Confirm Pages source is **GitHub Actions**; check **Deploy docs** workflow succeeded |
 | Site works on `github.io` URL but not custom domain | DNS missing or wrong | Only CNAME for `docs`; remove conflicting A record |
@@ -390,7 +388,7 @@ Pointing `docs` at EC2 and running certbot there will conflict with GitHub Pages
 
 1. Connect the `auth-engine-infra` repo in Cloudflare Pages
 2. Build command: none; output directory: **`docs`**
-3. Custom domain: `docs.bestcrmhub.com`
+3. Custom domain: `docs.authengine.org`
 4. Namecheap CNAME `docs` → target shown by Cloudflare (`*.pages.dev`)
 
 ---
@@ -401,11 +399,11 @@ After CI/CD and DNS are complete, verify each host:
 
 | Check | Command or URL |
 |-------|----------------|
-| API health | `curl https://api.bestcrmhub.com/api/v1/health` |
-| Swagger | https://api.bestcrmhub.com/docs |
-| OIDC discovery | `curl https://api.bestcrmhub.com/.well-known/openid-configuration` |
-| Dashboard login | https://app.bestcrmhub.com/login |
-| Docs site | https://docs.bestcrmhub.com |
+| API health | `curl https://api.authengine.org/api/v1/health` |
+| Swagger | https://api.authengine.org/docs |
+| OIDC discovery | `curl https://api.authengine.org/.well-known/openid-configuration` |
+| Dashboard login | https://app.authengine.org/login |
+| Docs site | https://docs.authengine.org |
 | TLS on all hosts | Padlock in browser; no mixed content |
 
 ---
@@ -414,8 +412,8 @@ After CI/CD and DNS are complete, verify each host:
 
 | Item | Local (`compose/docker-compose.yml`) | Production |
 |------|--------------------------------------|------------|
-| `APP_URL` | `http://localhost:3000` | `https://auth.bestcrmhub.com` |
-| CORS | `http://localhost:3000` | `https://app.bestcrmhub.com` |
+| `APP_URL` | `http://localhost:3000` | `https://auth.authengine.org` |
+| CORS | `http://localhost:3000` | `https://app.authengine.org` |
 | Databases | Postgres, Mongo, Redis in Compose | RDS + Atlas + Upstash |
 | Images | Build from GitHub or pull | Pull from Docker Hub |
 | TLS | Optional | Required (nginx + certbot) |

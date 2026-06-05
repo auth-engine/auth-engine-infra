@@ -1,7 +1,7 @@
 aws_region         = "ap-south-1"
 project_name       = "authengine"
 environment        = "production"
-root_domain        = "bestcrmhub.com"
+root_domain        = "authengine.org"
 api_subdomain       = "api"
 idp_subdomain       = "auth"
 dashboard_subdomain = "app"

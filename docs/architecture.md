@@ -240,7 +240,7 @@ src/auth_engine/
 
 Hybrid deployment on a single EC2 instance:
 
-- **nginx** terminates TLS for `api.bestcrmhub.com`, `auth.bestcrmhub.com`, and `app.bestcrmhub.com`
+- **nginx** terminates TLS for `api.authengine.org`, `auth.authengine.org`, and `app.authengine.org`
 - **API** and **frontend** run as Docker containers (`compose/docker-compose.prod.yml`)
 - **RDS**, **Upstash**, and **Atlas** are external managed services
 

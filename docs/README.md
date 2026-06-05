@@ -1,6 +1,6 @@
 # AuthEngine Documentation (source)
 
-Published at **[docs.bestcrmhub.com](https://docs.bestcrmhub.com)** — built with **MkDocs Material**.
+Published at **[docs.authengine.org](https://docs.authengine.org)** — built with **MkDocs Material**.
 
 Navigation is **mandatory** — all pages are defined in [`mkdocs.yml`](../mkdocs.yml) `nav:` (no auto-discovery).
 

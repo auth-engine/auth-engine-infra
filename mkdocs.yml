@@ -4,7 +4,7 @@ site_author: Niranjan Kumar
 exclude_docs: |
   README.md
 site_description: AuthEngine platform documentation — deployment, architecture, API, and security
-site_url: https://docs.bestcrmhub.com
+site_url: https://docs.authengine.org
 repo_url: https://github.com/Q-Niranjan/auth-engine-infra
 repo_name: auth-engine-infra
 edit_uri: edit/main/docs/

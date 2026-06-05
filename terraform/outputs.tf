@@ -47,8 +47,8 @@ output "suggested_urls" {
     api       = "https://${var.api_subdomain}.${var.root_domain}"
     dashboard = "https://${var.dashboard_subdomain}.${var.root_domain}"
     docs      = "https://${var.docs_subdomain}.${var.root_domain}"
-    api_dns   = "A record ${var.api_subdomain}.${var.root_domain} + ${var.idp_subdomain}.${var.root_domain} → ${aws_eip.api.public_ip}"
-    ui_note   = "Amplify custom domain ${var.dashboard_subdomain}.${var.root_domain}; docs static site at ${var.docs_subdomain}.${var.root_domain}"
+    api_dns   = "A records @, api, auth, app.${var.root_domain} → ${aws_eip.api.public_ip}; CNAME docs → GitHub Pages"
+    ui_note   = "EC2 Docker for ${var.dashboard_subdomain}.${var.root_domain}; docs at ${var.docs_subdomain}.${var.root_domain} via GitHub Pages"
   }
 }
 
