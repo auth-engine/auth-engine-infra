@@ -1,8 +1,19 @@
+---
+title: Security
+description: Tokens, sessions, MFA, PBAC, rate limiting, and production hardening checklist.
+author: Niranjan
+---
+
 # Security Overview
 
-AuthEngine is designed as a central identity layer for multiple applications. This document summarizes threat-relevant controls; use it with [Deployment Guide](deployment.md) for production hardening.
+AuthEngine is a central identity layer for multiple applications. This document summarizes threat-relevant controls. Pair it with [Deployment](deployment.md) for production hardening.
 
-## Security model at a glance
+!!! abstract "Contents"
+    **1** Trust model → **2** Secrets → **3** Passwords → **4** Sessions → **5** MFA → **6** Magic links → **7** OAuth → **8** OIDC → **9** PBAC → **10** Rate limits → **11** Audit → **12** Network → **13** API keys → **14** Frontend → **15** Checklist
+
+---
+
+## 1. Security model at a glance
 
 ```mermaid
 flowchart LR
@@ -24,7 +35,7 @@ flowchart LR
 - **Dashboard** stores access/refresh tokens client-side; refresh is automatic on 401.
 - **Services** never receive `JWT_SECRET_KEY`; they call introspection with a service API key.
 
-## Credentials and secrets
+## 2. Credentials and secrets
 
 | Secret | Usage | Storage |
 |--------|-------|---------|
@@ -36,7 +47,7 @@ flowchart LR
 
 Generate production secrets with `openssl rand -hex 32`. Never commit `.env` or `terraform.tfvars`.
 
-## Password policy
+## 3. Password policy
 
 Enforced at registration and password change:
 
@@ -44,7 +55,7 @@ Enforced at registration and password change:
 - Uppercase, lowercase, digit, special character (configurable booleans)
 - Argon2 hashing (`SecurityUtils.hash_password`)
 
-## Sessions and tokens
+## 4. Sessions and tokens
 
 ### JWT access tokens
 
@@ -76,13 +87,13 @@ Enforced at registration and password change:
 
 Service keys may be tenant-scoped: a key bound to tenant A cannot introspect data for tenant B.
 
-## MFA (TOTP)
+## 5. MFA (TOTP)
 
 - Secret generated with `pyotp`, encrypted at rest with Fernet derived from `SECRET_KEY`
 - Login returns **202** + `mfa_pending_token` when MFA enabled; Redis `mfa:pending:{user_id}` is one-time (~5 min)
 - Enrollment requires confirming a valid code before `mfa_enabled` is set
 
-## Magic links
+## 6. Magic links
 
 | Control | Mechanism |
 |---------|-----------|
@@ -92,20 +103,20 @@ Service keys may be tenant-scoped: a key bound to tenant A cannot introspect dat
 | Enumeration-safe | `/request` always returns 202 |
 | Email failure | Redis key rolled back if send fails |
 
-## OAuth2 social login
+## 7. OAuth2 social login
 
 - CSRF `state` stored in Redis (`oauth:state:*`, ~10 min)
 - Server-side code exchange only (no implicit flow for social login)
 - Account linking rules: known provider account → update tokens; known email → link; else create user with verified email
 
-## OIDC provider
+## 8. OIDC provider
 
 - Authorization Code + PKCE (S256 only)
 - Supported client auth: `client_secret_basic`, `client_secret_post`, `private_key_jwt`
 - ID tokens: prefer **RS256** with published JWKS for multi-tenant production; symmetric HS256 metadata is listed when RSA keys are not configured
 - Discovery and JWKS cached with `Cache-Control: public, max-age=3600`
 
-## Authorization (PBAC)
+## 9. Authorization (PBAC)
 
 Permissions are strings (e.g. `tenant.users.manage`), not role names. Guards:
 
@@ -125,15 +136,15 @@ Permissions are strings (e.g. `tenant.users.manage`), not role names. Guards:
 
 `SUPER_ADMIN` is seeded at bootstrap and should not be assigned manually.
 
-## Rate limiting
+## 10. Rate limiting
 
 When `RATE_LIMIT_ENABLED=true`, requests are limited per IP (`RATE_LIMIT_PER_MINUTE`, default 10) using Redis keys `ratelimit:{ip}:{minute}`.
 
-## Audit logging
+## 11. Audit logging
 
 Security-relevant actions are appended to MongoDB `audit_logs` with actor, tenant, resource, IP, and user agent. Platform and tenant admins query audit APIs with appropriate permissions.
 
-## Network and deployment
+## 12. Network and deployment
 
 | Control | Recommendation |
 |---------|----------------|
@@ -143,20 +154,20 @@ Security-relevant actions are appended to MongoDB `audit_logs` with actor, tenan
 | RDS | Security group allows Postgres only from EC2 |
 | Secrets on EC2 | File permissions `600` on `/opt/authengine/.env` |
 
-## Service API keys
+## 13. Service API keys
 
 - Format: `ae_sk_<64 hex>`
 - Only SHA-256 hash stored; `key_prefix` (12 chars) for UI display
 - Revocation via `DELETE /auth/service-keys/{id}` — effective on next introspect call
 - Optional `expires_at` for time-bound integrations
 
-## Frontend considerations
+## 14. Frontend considerations
 
 - Tokens held in client store (Zustand); protect against XSS in your deployment
 - Automatic logout when refresh fails
 - `X-Tenant-Id` sent only when a tenant is selected
 
-## Security checklist (production)
+## 15. Security checklist (production)
 
 - [ ] Rotate `SECRET_KEY`, `JWT_SECRET_KEY`, and super admin password from defaults
 - [ ] Enable TLS on all public endpoints
@@ -168,8 +179,11 @@ Security-relevant actions are appended to MongoDB `audit_logs` with actor, tenan
 - [ ] Review RDS backups and Atlas/Upstash access controls
 - [ ] Monitor audit logs for anomalous `platform.*` and `tenant.*` actions
 
-## Related
+## Next
 
-- [OAuth2 / OIDC Guides](oauth2-oidc-guides.md)
-- [API Reference](api-reference.md) — introspection and auth endpoints
-- [Architecture](architecture.md) — data flow and Redis patterns
+| Step | Guide |
+|------|-------|
+| OAuth / OIDC setup | [OAuth2 / OIDC Guides](oauth2-oidc-guides.md) |
+| API endpoints | [API Reference](api-reference.md) |
+| Data flow | [Architecture](architecture.md) |
+| Production deploy | [Deployment](deployment.md) |

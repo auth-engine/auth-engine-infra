@@ -6,7 +6,7 @@ This repository holds AWS Terraform, Docker Compose manifests, and all user-faci
 
 | Path | Contents |
 |------|----------|
-| [`docs/`](docs/) | Platform documentation (also published at [docs.bestcrmhub.com](https://docs.bestcrmhub.com)) |
+| [`docs/`](docs/) | Platform documentation — built with MkDocs Material, published at [docs.bestcrmhub.com](https://docs.bestcrmhub.com) |
 | [`compose/`](compose/) | `docker-compose.yml` (local) and `docker-compose.prod.yml` (EC2) |
 | [`terraform/`](terraform/) | VPC, EC2, RDS, ECR, IAM |
 
@@ -14,7 +14,7 @@ This repository holds AWS Terraform, Docker Compose manifests, and all user-faci
 
 | Guide | Description |
 |-------|-------------|
-| [Documentation index](docs/README.md) | Platform URLs and quick links |
+| [Documentation home](docs/index.md) | Platform URLs and where to start |
 | [Quick Start](docs/quick-start.md) | Run API, frontend, and databases locally |
 | [Deployment Guide](docs/deployment.md) | Hybrid production on AWS (EC2, RDS, Atlas, Upstash) |
 | [Architecture](docs/architecture.md) | System design and data flow |

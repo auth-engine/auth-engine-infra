@@ -1,8 +1,19 @@
+---
+title: Architecture
+description: System design — components, data stores, request lifecycle, and multi-tenancy.
+author: Niranjan
+---
+
 # Architecture
 
 AuthEngine is a **single FastAPI service**: one process owns IAM, tenancy, OIDC, and audit. The dashboard is a separate Next.js app. External services validate tokens via introspection.
 
-## High-level system diagram
+!!! abstract "Contents"
+    **1** System diagram → **2** Components → **3** Backend layers → **4** Design principles → **5** Request lifecycle → **6** Data stores → **7** Multi-tenancy → **8** Code layout → **9** Frontend → **10** Production topology
+
+---
+
+## 1. High-level system diagram
 
 ```mermaid
 flowchart TB
@@ -37,7 +48,7 @@ flowchart TB
     hub --> fe_ctr
 ```
 
-## Component responsibilities
+## 2. Component responsibilities
 
 | Component | Repository | Responsibility |
 |-----------|------------|----------------|
@@ -45,7 +56,7 @@ flowchart TB
 | Dashboard | `auth-engine-frontend` | Platform/tenant admin UI, user self-service |
 | Infrastructure | `auth-engine-infra` | Terraform, Docker Compose, VPC, EC2, RDS, documentation |
 
-## Backend internal architecture
+## 3. Backend internal architecture
 
 ```mermaid
 flowchart TB
@@ -110,7 +121,7 @@ flowchart TB
     redis_repo --> redis_db
 ```
 
-## Design principles
+## 4. Design principles
 
 **Strategy pattern** — Each auth method implements `BaseAuthStrategy` (`authenticate`, `validate`). New providers do not modify existing strategies.
 
@@ -118,7 +129,7 @@ flowchart TB
 
 **Repository pattern** — Services contain business logic; repositories own SQLAlchemy, Motor, and Redis access.
 
-## Request lifecycle
+## 5. Request lifecycle
 
 ```mermaid
 sequenceDiagram
@@ -141,7 +152,7 @@ sequenceDiagram
 
 Audit writes to MongoDB are fire-and-forget from the caller’s perspective.
 
-## Data stores
+## 6. Data stores
 
 | Store | Technology | Contents |
 |-------|------------|----------|
@@ -162,7 +173,7 @@ Audit writes to MongoDB are fire-and-forget from the caller’s perspective.
 | `webauthn:reg:{user_id}` | Registration challenge |
 | `webauthn:auth:{challenge}` | Authentication challenge |
 
-## Multi-tenancy model
+## 7. Multi-tenancy model
 
 ```mermaid
 erDiagram
@@ -203,7 +214,7 @@ erDiagram
 
 A user can hold different roles in different tenants via multiple `UserRole` rows. Tenant-scoped API paths include `{tenant_id}`; guards evaluate permissions in that tenant context.
 
-## API module layout (`auth_engine`)
+## 8. API module layout (`auth_engine`)
 
 ```
 src/auth_engine/
@@ -218,14 +229,14 @@ src/auth_engine/
 └── main.py          # App entry, CORS, lifespan, /.well-known mount
 ```
 
-## Frontend architecture
+## 9. Frontend architecture
 
 - **Framework:** Next.js App Router, React, Zustand (`auth-store`)
 - **HTTP:** Axios `apiClient` with Bearer token, `X-Tenant-Id`, automatic refresh on 401
 - **Layouts:** `(auth)` for login flows; `(dashboard)/platform` and `(dashboard)/tenant` for admin
 - **Security UI:** MFA and passkey management under `/me/security`
 
-## Production topology
+## 10. Production topology
 
 Hybrid deployment on a single EC2 instance:
 
@@ -235,8 +246,11 @@ Hybrid deployment on a single EC2 instance:
 
 See [Deployment Guide](deployment.md) for DNS, `.env`, CI/CD, and nginx setup.
 
-## Related
+## Next
 
-- [API Reference](api-reference.md)
-- [Security Overview](security-overview.md)
-- [OAuth2 / OIDC Guides](oauth2-oidc-guides.md)
+| Step | Guide |
+|------|-------|
+| Deploy this layout | [Deployment](deployment.md) |
+| REST endpoints | [API Reference](api-reference.md) |
+| Security controls | [Security Overview](security-overview.md) |
+| OAuth / OIDC | [OAuth2 / OIDC Guides](oauth2-oidc-guides.md) |

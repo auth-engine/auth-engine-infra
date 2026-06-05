@@ -1,10 +1,21 @@
+---
+title: API Reference
+description: REST API endpoints, authentication headers, and response codes.
+author: Niranjan
+---
+
 # API Reference
 
 **Base URL:** `https://api.bestcrmhub.com/api/v1`  
 **Interactive docs:** [https://api.bestcrmhub.com/docs](https://api.bestcrmhub.com/docs)  
 **OpenAPI JSON:** `/api/v1/openapi.json`
 
-## Authentication
+!!! abstract "Sections"
+    **1** Authentication → **2** System → **3** Auth → **4** Current user → **5** Platform admin → **6** Tenant admin → **7** OIDC → **8** Roles → **9** Dashboard routes
+
+---
+
+## 1. Authentication
 
 | Context | Header / mechanism |
 |---------|------------------|
@@ -28,7 +39,7 @@
 
 ---
 
-## System
+## 2. System
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -37,7 +48,7 @@
 
 ---
 
-## Authentication (`/auth`)
+## 3. Authentication (`/auth`)
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -125,7 +136,7 @@ Inactive: `{ "active": false }`
 
 ---
 
-## Current user (`/me`)
+## 4. Current user (`/me`)
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -151,7 +162,7 @@ Inactive: `{ "active": false }`
 
 ---
 
-## Platform admin (`/platform`)
+## 5. Platform admin (`/platform`)
 
 Requires platform-scoped permissions (e.g. `platform.tenants.manage`).
 
@@ -178,7 +189,7 @@ Requires platform-scoped permissions (e.g. `platform.tenants.manage`).
 
 ---
 
-## Tenant admin (`/tenants`)
+## 6. Tenant admin (`/tenants`)
 
 Path includes `tenant_id`. Guards use PBAC permissions scoped to that tenant.
 
@@ -213,7 +224,7 @@ Path includes `tenant_id`. Guards use PBAC permissions scoped to that tenant.
 
 ---
 
-## OIDC (`/oidc` and `/.well-known`)
+## 7. OIDC (`/oidc` and `/.well-known`)
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -227,7 +238,7 @@ Path includes `tenant_id`. Guards use PBAC permissions scoped to that tenant.
 
 ---
 
-## Roles and permission levels
+## 8. Roles and permission levels
 
 | Role | Level | Scope |
 |------|-------|-------|
@@ -246,9 +257,7 @@ Full permission strings are returned by introspection and `GET /me/tenants/{id}/
 
 ---
 
-## Frontend dashboard routes
-
-The Next.js app maps to these API areas:
+## 9. Frontend dashboard routes
 
 | UI path | API area |
 |---------|----------|
@@ -257,4 +266,12 @@ The Next.js app maps to these API areas:
 | `/tenant/*` | `/tenants/{tenant_id}/*` |
 | `/me`, `/me/security` | `/me/*` |
 
-See [Quick Start](quick-start.md) for local URLs.
+---
+
+## Next
+
+| Step | Guide |
+|------|-------|
+| OAuth / OIDC flows | [OAuth2 / OIDC Guides](oauth2-oidc-guides.md) |
+| Security model | [Security Overview](security-overview.md) |
+| Local URLs | [Quick Start](quick-start.md) |

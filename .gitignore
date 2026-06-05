@@ -11,3 +11,5 @@ override.tf.json
 *.tfvars
 !terraform/terraform.tfvars.example
 .DS_Store
+site/
+.venv-docs/

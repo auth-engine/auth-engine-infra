@@ -1,3 +1,9 @@
+---
+title: OAuth2 / OIDC
+description: Social login, OIDC provider setup, authorization code flow, and token introspection.
+author: Niranjan
+---
+
 # OAuth2 / OIDC Guides
 
 AuthEngine provides two OAuth-related capabilities:
@@ -5,7 +11,10 @@ AuthEngine provides two OAuth-related capabilities:
 1. **OAuth2 social login** — users sign in with Google, GitHub, or Microsoft; AuthEngine issues its own JWTs.
 2. **OpenID Connect provider** — third-party apps use AuthEngine as an IdP via standard OIDC flows.
 
-Base URL for API routes: `https://api.bestcrmhub.com/api/v1` (local: `http://localhost:8000/api/v1`).
+**Base URL:** `https://api.bestcrmhub.com/api/v1` (local: `http://localhost:8000/api/v1`)
+
+!!! abstract "Contents"
+    **Part A** Social login → **Part B** OIDC provider → **Part C** Service introspection
 
 ---
 
@@ -201,8 +210,11 @@ See [Security Overview](security-overview.md) for introspection steps and key ha
 
 ---
 
-## Related
+## Next
 
-- [API Reference](api-reference.md)
-- [Architecture](architecture.md)
-- [Deployment Guide](deployment.md) — DNS for `api` and `auth` hosts
+| Step | Guide |
+|------|-------|
+| Endpoint details | [API Reference](api-reference.md) |
+| System design | [Architecture](architecture.md) |
+| Production DNS | [Deployment](deployment.md) |
+| Token security | [Security Overview](security-overview.md) |
