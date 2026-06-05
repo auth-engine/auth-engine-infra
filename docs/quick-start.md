@@ -1,71 +1,54 @@
 # Quick Start
 
-Get AuthEngine running locally in three steps: databases + API, then the dashboard.
+Run the full stack locally: API, frontend, Postgres, MongoDB, and Redis — from **`auth-engine-infra/compose/`**.
 
 ## Prerequisites
 
-- Docker and Docker Compose (recommended for backend)
-- Node.js 20+ and npm (frontend)
-- `openssl rand -hex 32` for generating secrets
+- Docker and Docker Compose
+- `openssl rand -hex 32` for secrets (optional; defaults work for local)
 
-## 1. Backend (`auth-engine`)
-
-```bash
-cd auth-engine
-cp .env.example .env
-```
-
-Edit `.env` — at minimum set:
-
-- `SECRET_KEY` and `JWT_SECRET_KEY` (32+ characters each)
-- `POSTGRES_URL`, `MONGODB_URL`, `REDIS_URL` (defaults work with Compose)
-
-Start the stack and run migrations:
+## 1. Configure environment
 
 ```bash
-docker compose up -d
-docker compose exec app auth-engine migrate
+cd auth-engine-infra/compose
+cp env.local.example .env
 ```
 
-API explorer: [http://localhost:8000/docs](http://localhost:8000/docs)
+Edit `.env` if needed — at minimum set `SECRET_KEY` and `JWT_SECRET_KEY` to unique 32+ character values.
 
-### Manual run (without Compose app container)
+## 2. Start the stack
 
 ```bash
-uv sync
-auth-engine migrate
-auth-engine run
+docker compose up -d --build
 ```
 
-On first startup the API seeds RBAC roles and a super admin from `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD`.
+This starts:
 
-## 2. Frontend (`auth-engine-frontend`)
+| Service | URL |
+|---------|-----|
+| API | [http://localhost:8000](http://localhost:8000) |
+| Swagger | [http://localhost:8000/docs](http://localhost:8000/docs) |
+| Frontend | [http://localhost:3000](http://localhost:3000) |
+
+Images are built from GitHub (`Q-Niranjan/auth-engine`, `Q-Niranjan/auth-engine-frontend`) unless you change `AUTH_ENGINE_SRC` / `AUTH_ENGINE_FRONTEND_SRC` in `.env`.
+
+## 3. Migrations
 
 ```bash
-cd auth-engine-frontend
-cp .env.example .env.local
-npm ci
-npm run dev
+docker exec authengine-api auth-engine migrate
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+On first startup the API seeds RBAC roles and a super admin from `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` in `.env`.
 
-Default API target:
+## 4. Smoke test
 
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
-
-## 3. Smoke test
-
-1. Open Swagger at `http://localhost:8000/docs` and call `GET /api/v1/` (health).
-2. Log in at `http://localhost:3000/login` with the super admin credentials from `.env`.
+1. Call `GET /api/v1/health` in Swagger.
+2. Log in at [http://localhost:3000/login](http://localhost:3000/login) with super admin credentials.
 3. Platform routes (`/platform/*`) require a platform-scoped role; tenant routes require selecting a tenant in the dashboard.
 
 ## OAuth providers (optional)
 
-To enable Google, GitHub, or Microsoft social login, set the matching `*_CLIENT_ID`, `*_CLIENT_SECRET`, and `*_REDIRECT_URI` in `.env`. Redirect URIs for local dev:
+Set `GOOGLE_*`, `GITHUB_*`, or `MICROSOFT_*` in `.env`. Local redirect URIs:
 
 ```text
 http://localhost:8000/api/v1/auth/oauth/google/callback
@@ -73,8 +56,30 @@ http://localhost:8000/api/v1/auth/oauth/github/callback
 http://localhost:8000/api/v1/auth/oauth/microsoft/callback
 ```
 
+## Run without Docker (alternative)
+
+**Backend** — from a cloned `auth-engine` repo:
+
+```bash
+uv sync
+auth-engine migrate
+auth-engine run
+```
+
+**Frontend** — from `auth-engine-frontend`:
+
+```bash
+cp .env.example .env.local
+npm ci && npm run dev
+```
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
 ## Next steps
 
-- [OAuth2 / OIDC Guides](oauth2-oidc-guides.md) — integrate apps as relying parties
-- [API Reference](api-reference.md) — full endpoint list
-- [Deployment Guide](deployment.md) — production on AWS
+- [Deployment Guide](deployment.md) — hybrid production on AWS
+- [OAuth2 / OIDC Guides](oauth2-oidc-guides.md)
+- [API Reference](api-reference.md)

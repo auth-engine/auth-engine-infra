@@ -1,37 +1,41 @@
 # AuthEngine Documentation
 
-Canonical documentation for the AuthEngine platform. Published at [docs.bestcrmhub.com](https://docs.bestcrmhub.com).
+Canonical documentation for the AuthEngine platform.
 
-## Platform URLs
+**Published at:** [docs.bestcrmhub.com](https://docs.bestcrmhub.com)
+
+## Production URLs
 
 | Host | Role |
 |------|------|
-| [auth.bestcrmhub.com](https://auth.bestcrmhub.com) | Identity Provider (OIDC login, consent) |
 | [api.bestcrmhub.com](https://api.bestcrmhub.com) | REST API · [Swagger](https://api.bestcrmhub.com/docs) |
+| [auth.bestcrmhub.com](https://auth.bestcrmhub.com) | OIDC Identity Provider (login, consent) |
 | [app.bestcrmhub.com](https://app.bestcrmhub.com) | Admin dashboard |
-| [docs.bestcrmhub.com](https://docs.bestcrmhub.com) | This documentation |
+| [docs.bestcrmhub.com](https://docs.bestcrmhub.com) | Documentation |
 
-## Repositories
-
-| Repository | Purpose |
-|------------|---------|
-| [auth-engine](https://github.com/Q-Niranjan/auth-engine) | FastAPI backend — IAM, OIDC, introspection |
-| [auth-engine-frontend](https://github.com/Q-Niranjan/auth-engine-frontend) | Next.js dashboard |
-| [auth-engine-infra](https://github.com/Q-Niranjan/auth-engine-infra) | AWS Terraform + this `docs/` folder |
-
-> **View docs on GitHub:** use the `auth-engine-infra` repository, not the `auth-engine` repo.  
-> Example: `https://github.com/Q-Niranjan/auth-engine-infra/blob/main/docs/architecture.md`
+Local development: API `http://localhost:8000`, frontend `http://localhost:3000`.
 
 ## Guides
 
 | Guide | Description |
 |-------|-------------|
-| [Quick Start](quick-start.md) | Run backend, frontend, and databases locally |
-| [OAuth2 / OIDC Guides](oauth2-oidc-guides.md) | Social login, OIDC provider, relying-party integration |
-| [API Reference](api-reference.md) | Endpoints, auth headers, request/response patterns |
-| [Architecture](architecture.md) | System design, data stores, request flow |
-| [Deployment Guide](deployment.md) | AWS hybrid layout, DNS, CI/CD, docs publishing |
-| [Security Overview](security-overview.md) | Tokens, sessions, PBAC, hardening checklist |
+| [Quick Start](quick-start.md) | Local stack via Docker Compose |
+| [Deployment Guide](deployment.md) | Hybrid AWS deployment (EC2, RDS, Atlas, Upstash) |
+| [Architecture](architecture.md) | System design and data stores |
+| [API Reference](api-reference.md) | REST endpoints and auth headers |
+| [OAuth2 / OIDC Guides](oauth2-oidc-guides.md) | Social login and OIDC provider |
+| [Security Overview](security-overview.md) | Tokens, sessions, PBAC, hardening |
+
+## Repositories
+
+| Repository | Purpose |
+|------------|---------|
+| [auth-engine](https://github.com/Q-Niranjan/auth-engine) | FastAPI backend |
+| [auth-engine-frontend](https://github.com/Q-Niranjan/auth-engine-frontend) | Next.js dashboard |
+| [auth-engine-infra](https://github.com/Q-Niranjan/auth-engine-infra) | Terraform, Docker Compose, this documentation |
+
+> Docs live in **auth-engine-infra**, not the backend repo.  
+> Example: `https://github.com/Q-Niranjan/auth-engine-infra/blob/main/docs/architecture.md`
 
 ## Quick links
 

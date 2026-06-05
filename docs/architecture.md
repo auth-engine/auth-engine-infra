@@ -12,28 +12,29 @@ flowchart TB
         backend_svc["Backend services"]
     end
 
-    subgraph aws_infra ["AWS auth-engine-infra"]
-        ec2["EC2 and reverse proxy"]
+    subgraph aws_infra ["AWS EC2 hybrid"]
+        nginx["nginx TLS"]
+        api_ctr["API container :8000"]
+        fe_ctr["Frontend container :3000"]
         rds["RDS PostgreSQL"]
-        ecr["ECR images"]
-        amplify["Amplify frontend"]
     end
 
     subgraph managed ["Managed services"]
         upstash["Upstash Redis"]
         atlas["Atlas MongoDB"]
+        hub["Docker Hub images"]
     end
 
-    browser --> amplify
-    amplify --> ec2
-    browser --> ec2
-    rp --> ec2
-    backend_svc --> ec2
-
-    ec2 --> rds
-    ec2 --> upstash
-    ec2 --> atlas
-    ecr --> ec2
+    browser --> nginx
+    rp --> nginx
+    backend_svc --> nginx
+    nginx --> api_ctr
+    nginx --> fe_ctr
+    api_ctr --> rds
+    api_ctr --> upstash
+    api_ctr --> atlas
+    hub --> api_ctr
+    hub --> fe_ctr
 ```
 
 ## Component responsibilities
@@ -42,7 +43,7 @@ flowchart TB
 |-----------|------------|----------------|
 | API service | `auth-engine` | Auth, RBAC, OIDC, tenant config, introspection |
 | Dashboard | `auth-engine-frontend` | Platform/tenant admin UI, user self-service |
-| Infrastructure | `auth-engine-infra` | VPC, EC2, RDS, ECR, Terraform, documentation |
+| Infrastructure | `auth-engine-infra` | Terraform, Docker Compose, VPC, EC2, RDS, documentation |
 
 ## Backend internal architecture
 
@@ -226,7 +227,13 @@ src/auth_engine/
 
 ## Production topology
 
-See [Deployment Guide](deployment.md) for Terraform resources, DNS (`api`, `auth`, `app`, `docs`), and CI/CD workflow names.
+Hybrid deployment on a single EC2 instance:
+
+- **nginx** terminates TLS for `api.bestcrmhub.com`, `auth.bestcrmhub.com`, and `app.bestcrmhub.com`
+- **API** and **frontend** run as Docker containers (`compose/docker-compose.prod.yml`)
+- **RDS**, **Upstash**, and **Atlas** are external managed services
+
+See [Deployment Guide](deployment.md) for DNS, `.env`, CI/CD, and nginx setup.
 
 ## Related
 

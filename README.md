@@ -1,32 +1,31 @@
 # auth-engine-infra
 
-AWS Terraform and **canonical documentation** for the AuthEngine platform.
+Infrastructure and **canonical documentation** for the [AuthEngine](https://github.com/Q-Niranjan/auth-engine) platform.
 
-**Documentation:** [docs/](docs/) · on GitHub: [docs/](https://github.com/Q-Niranjan/auth-engine-infra/tree/main/docs) · published at [docs.bestcrmhub.com](https://docs.bestcrmhub.com)
+This repository holds AWS Terraform, Docker Compose manifests, and all user-facing guides. Application source code lives in the other two repositories.
+
+| Path | Contents |
+|------|----------|
+| [`docs/`](docs/) | Platform documentation (also published at [docs.bestcrmhub.com](https://docs.bestcrmhub.com)) |
+| [`compose/`](compose/) | `docker-compose.yml` (local) and `docker-compose.prod.yml` (EC2) |
+| [`terraform/`](terraform/) | VPC, EC2, RDS, ECR, IAM |
+
+## Documentation
 
 | Guide | Description |
 |-------|-------------|
-| [docs/README.md](docs/README.md) | Documentation index |
-| [Quick Start](docs/quick-start.md) | Local backend + frontend |
-| [OAuth2 / OIDC Guides](docs/oauth2-oidc-guides.md) | Social login and OIDC provider |
+| [Documentation index](docs/README.md) | Platform URLs and quick links |
+| [Quick Start](docs/quick-start.md) | Run API, frontend, and databases locally |
+| [Deployment Guide](docs/deployment.md) | Hybrid production on AWS (EC2, RDS, Atlas, Upstash) |
+| [Architecture](docs/architecture.md) | System design and data flow |
 | [API Reference](docs/api-reference.md) | REST endpoints |
-| [Architecture](docs/architecture.md) | System design and diagrams |
-| [Deployment Guide](docs/deployment.md) | AWS, DNS, CI/CD |
+| [OAuth2 / OIDC Guides](docs/oauth2-oidc-guides.md) | Social login and OIDC provider |
 | [Security Overview](docs/security-overview.md) | Tokens, PBAC, hardening |
 
 ## Related repositories
 
 | Repository | Role |
 |------------|------|
-| [auth-engine](https://github.com/Q-Niranjan/auth-engine) | Backend API |
-| [auth-engine-frontend](https://github.com/Q-Niranjan/auth-engine-frontend) | Admin dashboard |
-
-## Terraform
-
-```bash
-cd terraform
-cp terraform.tfvars.example terraform.tfvars
-terraform init && terraform apply
-```
-
-See [Deployment Guide](docs/deployment.md) for full production steps.
+| [auth-engine](https://github.com/Q-Niranjan/auth-engine) | FastAPI backend — IAM, OIDC, introspection |
+| [auth-engine-frontend](https://github.com/Q-Niranjan/auth-engine-frontend) | Next.js admin dashboard |
+| [auth-engine-infra](https://github.com/Q-Niranjan/auth-engine-infra) | This repo — Terraform, Compose, docs |
