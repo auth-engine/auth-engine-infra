@@ -69,6 +69,8 @@ Follow this order based on your goal:
 | **4** | [Security Overview](security-overview.md) | Harden tokens, sessions, and access |
 | **5** | [API Reference](api-reference.md) | Integrate with REST endpoints |
 | **6** | [OAuth2 / OIDC](oauth2-oidc-guides.md) | Social login or use AuthEngine as an IdP |
+| **7** | [Contributing](contributing.md) | Open source — PRs, issues, local dev |
+| **8** | [Security Policy](security-policy.md) | Report vulnerabilities responsibly |
 
 !!! tip "New here?"
     **[Quick Start](quick-start.md)** → **[Architecture](architecture.md)** → **[Deployment](deployment.md)**
@@ -99,6 +101,8 @@ Follow this order based on your goal:
 | [auth-engine](https://github.com/auth-engine/auth-engine) | Identity backend |
 | [auth-engine-dashboard](https://github.com/auth-engine/auth-engine-dashboard) | Admin dashboard |
 | [auth-engine-infra](https://github.com/auth-engine/auth-engine-infra) | Deployment and documentation |
+
+**Contributing:** [contributing.md](contributing.md) · **Security reports:** [security-policy.md](security-policy.md)
 
 ---
 

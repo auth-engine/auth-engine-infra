@@ -13,7 +13,9 @@ Navigation is **mandatory** — all pages are defined in [`mkdocs.yml`](../mkdoc
 5. [security-overview.md](security-overview.md) — hardening
 6. [api-reference.md](api-reference.md) — REST API
 7. [oauth2-oidc-guides.md](oauth2-oidc-guides.md) — OAuth / OIDC
-8. [about-author.md](about-author.md) — About AuthEngine
+8. [contributing.md](contributing.md) — Open source contributions
+9. [security-policy.md](security-policy.md) — Vulnerability reporting
+10. [about-author.md](about-author.md) — About AuthEngine
 
 ## Local preview
 

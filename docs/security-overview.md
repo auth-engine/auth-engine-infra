@@ -8,6 +8,9 @@ author: Niranjan
 
 AuthEngine is a central identity layer for multiple applications. This document summarizes threat-relevant controls. Pair it with [Deployment](deployment.md) for production hardening.
 
+!!! warning "Found a vulnerability?"
+    Report it privately — see [Security Policy](security-policy.md). Do **not** open a public GitHub issue.
+
 !!! abstract "Contents"
     **1** Trust model → **2** Secrets → **3** Passwords → **4** Sessions → **5** MFA → **6** Magic links → **7** OAuth → **8** OIDC → **9** PBAC → **10** Rate limits → **11** Audit → **12** Network → **13** API keys → **14** Frontend → **15** Checklist
 

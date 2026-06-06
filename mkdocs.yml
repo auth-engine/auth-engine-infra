@@ -76,6 +76,9 @@ nav:
   - Integration:
       - API Reference: api-reference.md
       - OAuth2 / OIDC: oauth2-oidc-guides.md
+  - Community:
+      - Contributing: contributing.md
+      - Security Policy: security-policy.md
   - About:
       - About: about-author.md
 
