@@ -1,12 +1,5 @@
 name: auth-engine-infra · Terraform Plan
 
-# Manual only for now. To automate on PRs later, uncomment:
-# on:
-#   pull_request:
-#     branches: [main]
-#     paths:
-#       - "terraform/**"
-#       - ".github/workflows/terraform-plan.yml"
 on:
   workflow_dispatch:
 

@@ -1,14 +1,6 @@
 name: auth-engine-infra · Deploy docs
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "docs/**"
-      - "overrides/**"
-      - "mkdocs.yml"
-      - "requirements-docs.txt"
-      - ".github/workflows/docs-deploy.yml"
   workflow_dispatch:
 
 permissions:
