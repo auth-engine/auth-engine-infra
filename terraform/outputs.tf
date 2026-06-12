@@ -35,9 +35,9 @@ output "ecr_api_repository_url" {
   value       = aws_ecr_repository.api.repository_url
 }
 
-output "ecr_frontend_repository_url" {
+output "ecr_dashboard_repository_url" {
   description = "ECR URL for auth-engine-dashboard image (optional EC2/ECS deploy)"
-  value       = aws_ecr_repository.frontend.repository_url
+  value       = aws_ecr_repository.dashboard.repository_url
 }
 
 output "suggested_urls" {

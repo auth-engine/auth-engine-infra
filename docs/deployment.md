@@ -115,14 +115,50 @@ sudo nano /opt/authengine/.env
 sudo chmod 600 /opt/authengine/.env
 ```
 
-Required variables: `SECRET_KEY`, `JWT_SECRET_KEY`, `POSTGRES_URL`, `MONGODB_URL`, `REDIS_URL`, `APP_URL`, `CORS_ORIGINS`, `SUPERADMIN_*`, `EMAIL_*`. Full list in `compose/env.prod.example`.
+Required variables: `SECRET_KEY`, `JWT_SECRET_KEY`, `POSTGRES_URL`, `MONGODB_URL`, `REDIS_URL`, `APP_URL`, `DASHBOARD_URL`, `CORS_ORIGINS`, `SUPERADMIN_*`, `EMAIL_*`, `SMS_*`. Full list in `compose/env.prod.example`.
 
 | Variable | Production value |
 |----------|------------------|
-| `APP_URL` | `https://auth.authengine.org` |
+| `APP_URL` | `https://auth.authengine.org` (IdP/issuer; used for OIDC + WebAuthn) |
+| `DASHBOARD_URL` | `https://app.authengine.org` (used to build password-reset / verify-email links) |
 | `CORS_ORIGINS` | `["https://app.authengine.org"]` |
 | `MONGODB_URL` | Must include `/authengine` in the path (not `/?appName=...` only) |
 | `REDIS_URL` | `rediss://` (Upstash TLS) |
+
+> `APP_URL` and `DASHBOARD_URL` are distinct on purpose: `APP_URL` must stay the IdP domain (it is the OIDC issuer and WebAuthn RP ID), while `DASHBOARD_URL` is the frontend that renders the password-reset and email-verification pages.
+
+### 4.1.1 Notifications — Email OTP (SES) and SMS OTP (Android gateway)
+
+AuthEngine sends email (verification, password reset) and SMS (phone OTP) through pluggable providers selected by `EMAIL_PROVIDER` / `SMS_PROVIDER`.
+
+**Email — Amazon SES** (`EMAIL_PROVIDER=ses`)
+
+| Variable | Value |
+|----------|-------|
+| `EMAIL_PROVIDER` | `ses` |
+| `EMAIL_SENDER` | `noreply@authengine.org` (must be a verified SES identity) |
+| `AWS_REGION` | `ap-south-1` |
+| `EMAIL_PROVIDER_API_KEY` | Leave **blank** to use the EC2 IAM role (recommended). Otherwise `"ACCESS_KEY_ID:SECRET_ACCESS_KEY"`. |
+
+Setup:
+1. `terraform apply` in `terraform/` creates the SES domain identity, Easy DKIM, a custom MAIL FROM, and grants the EC2 role `ses:SendEmail` (see `terraform/ses.tf`).
+2. Add the DNS records from `terraform output ses_dns_records` (TXT `_amazonses`, 3 DKIM CNAMEs, MAIL FROM MX/SPF) at your DNS host. SES flips to **Verified** automatically.
+3. New SES accounts are in the **sandbox** (can only send to verified addresses). Request production access: `terraform output ses_production_access_cli`, or set `request_ses_production_access = true`.
+
+**SMS — Android phone + SIM gateway** (`SMS_PROVIDER=android_gateway`)
+
+Runs the open-source "SMS Gateway for Android" app on a phone with a SIM; OTPs are sent off the existing SIM (no per-message fee).
+
+| Variable | Value |
+|----------|-------|
+| `SMS_PROVIDER` | `android_gateway` |
+| `SMS_GATEWAY_URL` | **Cloud** (required on EC2): `https://api.sms-gate.app/3rdparty/v1` · **Local** (same Wi-Fi only): `http://<phone-lan-ip>:8080` |
+| `SMS_GATEWAY_USERNAME` / `SMS_GATEWAY_PASSWORD` | Basic-auth credentials shown in the app |
+
+Notes:
+- On EC2 you **must** use Cloud mode — the server cannot reach a phone's private LAN IP.
+- Keep the app running with battery optimization disabled, SMS permission granted, and an SMS-capable SIM/plan.
+- Phone numbers should be E.164 (`+91…`); bare 10-digit numbers are auto-prefixed with `+91`.
 
 ### 4.2 Optional OIDC RS256 key
 

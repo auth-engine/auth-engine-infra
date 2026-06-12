@@ -8,8 +8,8 @@ resource "aws_ecr_repository" "api" {
   }
 }
 
-resource "aws_ecr_repository" "frontend" {
-  name                 = "${var.project_name}-frontend"
+resource "aws_ecr_repository" "dashboard" {
+  name                 = "${var.project_name}-dashboard"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
 
@@ -35,8 +35,8 @@ resource "aws_ecr_lifecycle_policy" "api" {
   })
 }
 
-resource "aws_ecr_lifecycle_policy" "frontend" {
-  repository = aws_ecr_repository.frontend.name
+resource "aws_ecr_lifecycle_policy" "dashboard" {
+  repository = aws_ecr_repository.dashboard.name
 
   policy = jsonencode({
     rules = [{

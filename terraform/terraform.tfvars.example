@@ -16,3 +16,12 @@ db_password = "CHANGE_ME_STRONG_PASSWORD"
 # Optional SSH (your public IP /32). Leave empty to use SSM only.
 allowed_ssh_cidr = ""
 ec2_key_name     = ""
+
+# ── Amazon SES (email OTP / verification) ──
+# DNS is on Cloudflare, so leave route53_zone_id empty and add the records from
+# the `ses_dns_records` output. If your DNS were in Route53, set the zone id here.
+# ses_domain              = "authengine.org"   # defaults to root_domain
+# route53_zone_id         = ""
+# ses_mail_from_subdomain = "mail"             # mail.authengine.org; "" to disable
+# Request production access (exit sandbox) during apply. Needs AWS CLI on the runner.
+request_ses_production_access = false
