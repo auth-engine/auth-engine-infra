@@ -1,13 +1,23 @@
 #!/bin/bash
-set -euxo pipefail
+set -euo pipefail
+
+# Start SSM agent first so Session Manager works during bootstrap
+dnf install -y amazon-ssm-agent
+systemctl enable amazon-ssm-agent
+systemctl start amazon-ssm-agent
 
 dnf update -y
-dnf install -y docker
+dnf install -y docker amazon-ecr-credential-helper curl
 systemctl enable docker
 systemctl start docker
 usermod -aG docker ec2-user
 
-dnf install -y amazon-ecr-credential-helper
+# AL2023 docker package does not include the compose plugin
+ARCH="$(uname -m)"
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -fsSL "https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-${ARCH}" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 mkdir -p /opt/authengine
 cat >/opt/authengine/README.txt <<'EOF'

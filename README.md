@@ -28,7 +28,8 @@ Owns `terraform/` (VPC, EC2, RDS, ECR, IAM, SES) and `compose/` (local and produ
 # Local stack
 cd compose
 cp env.local.example .env
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 
 # AWS infrastructure
 cd terraform
@@ -53,7 +54,8 @@ This repository owns the Compose manifests in [`compose/`](compose/).
 ```bash
 cd compose
 cp env.local.example .env
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 docker exec authengine-api auth-engine migrate
 ```
 
