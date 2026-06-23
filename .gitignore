@@ -21,3 +21,6 @@ deploy/*.pem
 
 # Downloaded installer binaries
 *.deb
+
+# Local values override (never commit)
+local-values.yaml

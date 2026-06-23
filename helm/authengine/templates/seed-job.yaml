@@ -1,0 +1,58 @@
+{{- if .Values.seed.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: authengine-seed
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: seed
+        image: python:3.12-slim-bookworm
+        command:
+        - /bin/bash
+        - -lc
+        - |
+          set -euo pipefail
+          apt-get update -qq && apt-get install -y -qq git curl ca-certificates
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="/root/.local/bin:$PATH"
+          git clone --depth 1 https://github.com/{{ .Values.seed.githubOrg | default "auth-engine" }}/auth-engine.git /tmp/auth-engine
+          git clone --depth 1 https://github.com/{{ .Values.seed.githubOrg | default "auth-engine" }}/auth-engine-data.git /tmp/auth-engine-data
+          cat > /tmp/auth-engine-data/.env.local <<EOF
+          POSTGRES_URL=${POSTGRES_URL}
+          SECRET_KEY=${SECRET_KEY}
+          SUPERADMIN_EMAIL=${SUPERADMIN_EMAIL}
+          SUPERADMIN_PASSWORD=${SUPERADMIN_PASSWORD}
+          EMAIL_PROVIDER=resend
+          EMAIL_PROVIDER_API_KEY=${RESEND_API_KEY}
+          EMAIL_SENDER=noreply@{{ .Values.global.domain }}
+          EOF
+          cd /tmp/auth-engine-data && uv sync && uv run auth-engine-data all
+        env:
+        - name: POSTGRES_URL
+          valueFrom:
+            secretKeyRef:
+              name: authengine-secrets
+              key: POSTGRES_URL
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: authengine-secrets
+              key: SECRET_KEY
+        - name: SUPERADMIN_EMAIL
+          value: {{ .Values.seed.superadminEmail | quote }}
+        - name: SUPERADMIN_PASSWORD
+          value: {{ .Values.seed.superadminPassword | quote }}
+        - name: RESEND_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: authengine-secrets
+              key: RESEND_API_KEY
+{{- end }}

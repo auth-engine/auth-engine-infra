@@ -36,26 +36,7 @@ resource "aws_subnet" "public" {
   }
 }
 
-# Private subnets — RDS requires two AZs in the subnet group.
-resource "aws_subnet" "private_a" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = cidrsubnet(var.vpc_cidr, 8, 10)
-  availability_zone = data.aws_availability_zones.available.names[0]
 
-  tags = {
-    Name = "${var.project_name}-private-a"
-  }
-}
-
-resource "aws_subnet" "private_b" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = cidrsubnet(var.vpc_cidr, 8, 11)
-  availability_zone = data.aws_availability_zones.available.names[1]
-
-  tags = {
-    Name = "${var.project_name}-private-b"
-  }
-}
 
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id

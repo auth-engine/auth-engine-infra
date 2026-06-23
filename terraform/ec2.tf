@@ -31,7 +31,6 @@ resource "aws_instance" "api" {
 
   user_data = base64encode(templatefile("${path.module}/user_data.sh", {
     project_name = var.project_name
-    ecr_api_url  = aws_ecr_repository.api.repository_url
   }))
 
   root_block_device {

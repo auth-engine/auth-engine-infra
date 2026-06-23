@@ -1,6 +1,6 @@
 # auth-engine-infra
 
-Infrastructure for **AuthEngine** — AWS Terraform and Docker Compose manifests.
+Infrastructure for **AuthEngine** — AWS Terraform (EC2), Helm chart (K3s/Rancher), and Docker Compose for local development.
 
 **Documentation:** [auth-engine-docs](https://github.com/auth-engine/auth-engine-docs) · published at [docs.authengine.org](https://docs.authengine.org)
 
@@ -15,51 +15,38 @@ Infrastructure for **AuthEngine** — AWS Terraform and Docker Compose manifests
 
 ## What this repository is
 
-Owns `terraform/` (VPC, EC2, RDS, ECR, IAM, SES) and `compose/` (local and production Docker Compose stacks). Application source code and platform documentation live in the other repositories.
-
 | Path | Contents |
 |------|----------|
-| [`terraform/`](terraform/) | AWS infrastructure — VPC, EC2, RDS, ECR, IAM, SES |
-| [`compose/`](compose/) | `docker-compose.yml` (local) and `docker-compose.prod.yml` (EC2) |
+| [`terraform/`](terraform/) | AWS EC2 + VPC + Elastic IP (K3s/Rancher node) |
+| [`helm/authengine/`](helm/authengine/) | Production Helm chart — API, dashboard, Postgres, MongoDB, Redis, Ingress |
+| [`compose/`](compose/) | `docker-compose.yml` for **local development** only |
+| [`deploy/`](deploy/) | `auth-engine-deploy.sh` — Terraform, K3s, Helm, seed, verify |
 
-## Quick reference
+Application source code and platform documentation live in the other repositories.
+
+## Production (K3s + Rancher + Helm)
+
+1. **Terraform** — provision EC2 (`t4g.xlarge` recommended)
+2. **DNS** — point `api`, `auth`, `app`, `rancher` to the Elastic IP
+3. **K3s + Rancher** — install on EC2 (see [deployment guide](https://docs.authengine.org/deployment/))
+4. **Helm** — `helm install authengine helm/authengine` with production secrets
+5. **Seed** — enable `seed.enabled` in Helm values or run `auth-engine-data all`
+6. **CI/CD** — merge to `main` builds Docker images; redeploy workloads in Rancher
 
 ```bash
-# Local stack
-cd compose
-cp env.local.example .env
-docker compose pull
-docker compose up -d
-
-# AWS infrastructure
-cd terraform
-cp terraform.tfvars.example terraform.tfvars
-terraform init
-terraform apply
+./deploy/auth-engine-deploy.sh all    # interactive walk-through
 ```
 
-## Production
-
-| Host | Role |
-|------|------|
-| [api.authengine.org](https://api.authengine.org) | API + Swagger |
-| [auth.authengine.org](https://auth.authengine.org) | OIDC / login UI |
-| [app.authengine.org](https://app.authengine.org) | Admin dashboard |
-| [docs.authengine.org](https://docs.authengine.org) | Documentation |
-
-## Docker
-
-This repository owns the Compose manifests in [`compose/`](compose/).
+## Local development (Docker Compose)
 
 ```bash
 cd compose
 cp env.local.example .env
-docker compose pull
 docker compose up -d
 docker exec authengine-api auth-engine migrate
 ```
 
-After migrations, seed roles and the super admin from the host with **[auth-engine-data](https://github.com/auth-engine/auth-engine-data)**:
+After migrations, seed from **[auth-engine-data](https://github.com/auth-engine/auth-engine-data)**:
 
 ```bash
 cd ../../auth-engine-data
@@ -67,7 +54,15 @@ uv sync && cp .env.example .env.local
 uv run auth-engine-data all
 ```
 
-Production overlay: `docker-compose.prod.yml` with pre-built images. Full guide: [Deployment](https://docs.authengine.org/deployment/).
+## Production URLs
+
+| Host | Role |
+|------|------|
+| [api.authengine.org](https://api.authengine.org) | API + Swagger |
+| [auth.authengine.org](https://auth.authengine.org) | OIDC / login UI |
+| [app.authengine.org](https://app.authengine.org) | Admin dashboard |
+| [rancher.authengine.org](https://rancher.authengine.org) | Cluster management |
+| [docs.authengine.org](https://docs.authengine.org) | Documentation |
 
 ## Contributing
 
