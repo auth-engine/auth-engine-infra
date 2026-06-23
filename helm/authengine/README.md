@@ -6,8 +6,8 @@ Deploys the full AuthEngine production stack on Kubernetes (K3s/Rancher):
 - **dashboard** — Next.js (`qniranjan01/authengine-dashboard`)
 - **postgres**, **mongodb**, **redis** — in-cluster StatefulSets
 - **Ingress** — `api`, `auth`, and `app` hosts with cert-manager TLS
-- **migrate Job** — runs `auth-engine migrate` on install/upgrade
-- **seed Job** (optional) — runs `auth-engine-data all` on first install
+- **migrate Job** — Helm hook on install/upgrade (`auth-engine migrate`)
+- **seed Job** — regular Kubernetes Job (visible in Rancher); runs on install, or on upgrade when `seed.runOnUpgrade: true`
 
 ## Install
 
@@ -44,5 +44,17 @@ helm upgrade authengine . -n authengine -f prod-values.yaml
 kubectl rollout restart deployment/api -n authengine
 kubectl exec -n authengine deployment/api -- auth-engine migrate
 ```
+
+## Re-run database seed (platform tenant + super admin)
+
+Seed Jobs are normal Kubernetes Jobs (not hidden Helm hooks). On upgrade, set `seed.runOnUpgrade: true`:
+
+```bash
+helm upgrade authengine . -n authengine -f prod-values.yaml --set seed.runOnUpgrade=true
+kubectl get jobs -n authengine
+kubectl logs -n authengine job/authengine-seed-<revision> -f
+```
+
+In Rancher: **Workloads → Jobs** — look for `authengine-seed-*` and `authengine-migrate`.
 
 Full guide: [docs.authengine.org/deployment](https://docs.authengine.org/deployment/)

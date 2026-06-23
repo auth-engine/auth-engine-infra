@@ -16,9 +16,11 @@ secrets:
   jwtSecretKey: "change_me_to_a_32_character_jwt_secret"
   resendApiKey: ""
 
-# Super admin — used by the optional seed Job (first deploy only).
+# Super admin — seed Job creates platform tenant, roles, and auth config.
 seed:
-  enabled: false
+  enabled: true
+  # Set true on helm upgrade to create a new visible seed Job (idempotent).
+  runOnUpgrade: false
   superadminEmail: "admin@example.com"
   superadminPassword: "ChangeThisStrongPassword123!"
   githubOrg: "auth-engine"
@@ -64,6 +66,8 @@ dashboard:
     pullPolicy: Always
   replicas: 1
   port: 3000
+  # Optional. Leave empty — login page resolves platform tenant from the API.
+  platformTenantId: ""
 
 postgres:
   image:
