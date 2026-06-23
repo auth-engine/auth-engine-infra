@@ -10,6 +10,7 @@ services:
       POSTGRES_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       MONGODB_URL: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017/${MONGO_DB}?authSource=${MONGO_AUTH_SOURCE}
       REDIS_URL: redis://${REDIS_USER}:${REDIS_PASSWORD}@redis:6379/0
+      OIDC_PRIVATE_KEY_PATH: /app/oidc_private.pem
     volumes:
       - ${OIDC_PRIVATE_KEY_PATH:-./oidc_private.pem}:/app/oidc_private.pem:ro
     depends_on:
@@ -28,10 +29,15 @@ services:
     container_name: authengine-dashboard
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      NEXT_PUBLIC_PLATFORM_TENANT_ID: ${NEXT_PUBLIC_PLATFORM_TENANT_ID:-}
     depends_on:
       - api
     restart: unless-stopped

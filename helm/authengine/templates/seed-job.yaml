@@ -1,15 +1,22 @@
-{{- if .Values.seed.enabled }}
+{{- if and .Values.seed.enabled (or .Release.IsInstall .Values.seed.runOnUpgrade) }}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: authengine-seed
+  name: authengine-seed-{{ .Release.Revision }}
+  labels:
+    app.kubernetes.io/name: authengine
+    app.kubernetes.io/component: seed
   annotations:
-    "helm.sh/hook": post-install
-    "helm.sh/hook-weight": "10"
-    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    # Keep completed seed Jobs visible in Rancher until manually deleted.
+    helm.sh/resource-policy: keep
 spec:
   backoffLimit: 2
+  ttlSecondsAfterFinished: 604800
   template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: authengine
+        app.kubernetes.io/component: seed
     spec:
       restartPolicy: Never
       containers:
