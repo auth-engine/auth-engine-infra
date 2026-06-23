@@ -27,6 +27,7 @@ spec:
           git clone --depth 1 https://github.com/{{ .Values.seed.githubOrg | default "auth-engine" }}/auth-engine-data.git /tmp/auth-engine-data
           cat > /tmp/auth-engine-data/.env.local <<EOF
           POSTGRES_URL=${POSTGRES_URL}
+          POSTGRES_SSL=${POSTGRES_SSL}
           SECRET_KEY=${SECRET_KEY}
           SUPERADMIN_EMAIL=${SUPERADMIN_EMAIL}
           SUPERADMIN_PASSWORD=${SUPERADMIN_PASSWORD}
@@ -41,6 +42,8 @@ spec:
             secretKeyRef:
               name: authengine-secrets
               key: POSTGRES_URL
+        - name: POSTGRES_SSL
+          value: {{ .Values.api.env.POSTGRES_SSL | default "false" | quote }}
         - name: SECRET_KEY
           valueFrom:
             secretKeyRef:
