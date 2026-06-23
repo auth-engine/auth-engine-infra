@@ -1,5 +1,5 @@
 resource "aws_iam_role" "ec2" {
-  name = "${var.project_name}-ec2-role"
+  name_prefix = "${var.project_name}-ec2-role-"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -13,10 +13,6 @@ resource "aws_iam_role" "ec2" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "ecr_read" {
-  role       = aws_iam_role.ec2.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-}
 
 resource "aws_iam_role_policy_attachment" "ssm" {
   role       = aws_iam_role.ec2.name
@@ -24,6 +20,6 @@ resource "aws_iam_role_policy_attachment" "ssm" {
 }
 
 resource "aws_iam_instance_profile" "ec2" {
-  name = "${var.project_name}-ec2-profile"
-  role = aws_iam_role.ec2.name
+  name_prefix = "${var.project_name}-ec2-profile-"
+  role        = aws_iam_role.ec2.name
 }

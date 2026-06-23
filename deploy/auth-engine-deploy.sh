@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# AuthEngine production deployment — Terraform plan/apply through verification.
+# AuthEngine production deployment — Terraform, K3s/Rancher, Helm, seed, verify.
 # Run from anywhere: ./deploy/auth-engine-deploy.sh [command]
 #
 # Commands:
@@ -8,30 +8,33 @@
 #   terraform         plan + interactive apply
 #   outputs           Show Terraform outputs after apply
 #   dns               Print DNS records to configure
-#   ses-dns           Print SES DNS records from Terraform
-#   ec2-env           Print EC2 .env setup instructions
-#   ec2-sync-compose  Copy compose files to EC2 (no docker pull/up)
-#   ec2-deploy        Pull images and start containers on EC2 (via SSM)
-#   ec2-migrate       Run database migrations on EC2 (via SSM)
-#   ec2-seed          Seed roles + super admin on EC2 (via SSM, after migrate)
+#   k3s-guide         Print K3s + Rancher + cert-manager install steps
+#   helm-values       Print Helm values checklist (secrets to override)
+#   helm-install      Guided helm install authengine chart
+#   k8s-migrate       Run auth-engine migrate in api pod (via SSM + kubectl)
+#   k8s-seed          Run auth-engine-data all via kubectl Job (via SSM)
 #   seed              Seed roles + super admin locally (auth-engine-data repo)
-#   nginx             Install nginx + certbot on EC2 and issue TLS certs (SSM)
-#   nginx-manual      Print manual nginx + certbot instructions
 #   verify            Curl production health endpoints
+#   oauth             OAuth redirect URI checklist
+#   cicd              CI/CD (build + Rancher redeploy) checklist
+#   docs              GitHub Pages docs setup (auth-engine-docs repo)
 #   all               Interactive walk-through of every phase
 #   help              Show usage
 #
+# Legacy (deprecated — use Helm/K8s commands above):
+#   ses-dns, ec2-env, ec2-sync-compose, ec2-deploy, ec2-migrate, ec2-seed, nginx, nginx-manual
+#
 # Prerequisites:
-#   - terraform >= 1.5, aws CLI (for SSM/EC2 steps)
-#   - AWS credentials (env vars or ~/.aws/credentials)
-#   - terraform/terraform.tfvars with db_password set
+#   - terraform >= 1.5, aws CLI (for SSM/kubectl on EC2)
+#   - helm + kubectl (for helm-install; kubeconfig from K3s or Rancher)
+#   - terraform/terraform.tfvars (copy from terraform.tfvars.example)
 #
 # Environment overrides:
 #   TF_DIR, COMPOSE_DIR, TFVARS_FILE, AWS_REGION, AWS_PROFILE
 #   SKIP_CONFIRM=1          Skip yes/no prompts (CI only)
 #   AUTH_ENGINE_DATA_DIR    Path to auth-engine-data checkout (for local seed)
-#   GITHUB_ORG              GitHub org for clone-based EC2 seed (default: auth-engine)
-#   CERTBOT_EMAIL           Let's Encrypt contact (default: SUPERADMIN_EMAIL on EC2)
+#   GITHUB_ORG              GitHub org for seed Job clone (default: auth-engine)
+#   HELM_NAMESPACE          K8s namespace (default: authengine)
 #   TF_AUTO_APPROVE=1       Pass -auto-approve to terraform apply
 
 set -euo pipefail
@@ -43,6 +46,8 @@ COMPOSE_DIR="${COMPOSE_DIR:-${REPO_ROOT}/compose}"
 TFVARS_FILE="${TFVARS_FILE:-${TF_DIR}/terraform.tfvars}"
 AUTH_ENGINE_DATA_DIR="${AUTH_ENGINE_DATA_DIR:-${REPO_ROOT}/../auth-engine-data}"
 GITHUB_ORG="${GITHUB_ORG:-auth-engine}"
+HELM_DIR="${HELM_DIR:-${REPO_ROOT}/helm/authengine}"
+HELM_NAMESPACE="${HELM_NAMESPACE:-authengine}"
 NGINX_DIR="${NGINX_DIR:-${SCRIPT_DIR}/nginx}"
 NGINX_TEMPLATE="${NGINX_TEMPLATE:-${NGINX_DIR}/authengine.http.conf.tpl}"
 PLAN_FILE="${TF_DIR}/tfplan"
@@ -94,9 +99,6 @@ terraform_cmd() {
   fi
   if [[ -n "${AWS_PROFILE:-}" ]]; then
     extra_env+=(AWS_PROFILE="${AWS_PROFILE}")
-  fi
-  if [[ -n "${TF_VAR_db_password:-}" ]]; then
-    extra_env+=(TF_VAR_db_password="${TF_VAR_db_password}")
   fi
   env "${extra_env[@]}" terraform -chdir="${TF_DIR}" "$@"
 }
@@ -173,7 +175,7 @@ check_prerequisites() {
     err "Missing ${TFVARS_FILE}"
     log "Create it from the example:"
     log "  cp ${TF_DIR}/terraform.tfvars.example ${TFVARS_FILE}"
-    log "  # Set db_password (openssl rand -base64 24)"
+    log "  # Set ec2_instance_type = t4g.xlarge for production"
     exit 1
   fi
   ok "Found ${TFVARS_FILE}"
@@ -287,84 +289,155 @@ Point these DNS records at your registrar (TTL 300 during migration):
   A      api     ${eip}
   A      auth    ${eip}
   A      app     ${eip}
-  CNAME  docs    <your-github-pages-host>  (e.g. auth-engine.github.io)
+  A      rancher ${eip}
+  CNAME  docs    auth-engine.github.io  (GitHub Pages — auth-engine-docs repo)
 
-Suggested URLs (from terraform output suggested_urls):
+Terraform no longer exposes the old 'suggested_urls' output.
+Use the EC2 Elastic IP above for any subdomains you want to route to this host.
 EOF
-  terraform_cmd output suggested_urls
 }
 
 cmd_ses_dns() {
-  phase "2b — SES DNS"
-  if ! tf_state_ready; then
-    err "No Terraform state found. Run: $0 apply"
-    exit 1
-  fi
-
-  log "SES from address: $(tf_output ses_from_address)"
-  echo ""
-  terraform_cmd output -json ses_dns_records 2>/dev/null | python3 -m json.tool || terraform_cmd output ses_dns_records
-  echo ""
-  log "Production access CLI:"
-  terraform_cmd output ses_production_access_cli 2>/dev/null || true
+  warn "SES is no longer provisioned by Terraform. Use Resend for email (see helm values secrets.resendApiKey)."
+  warn "See: auth-engine-docs/docs/deployment.md — Phase 5 (Seed data / platform config)"
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Phase 3 — EC2 environment
-# ─────────────────────────────────────────────────────────────────────────────
-
-cmd_ec2_env() {
-  phase "3 — EC2 application environment"
-  if ! tf_state_ready; then
-    err "No Terraform state found. Run: $0 apply"
-    exit 1
-  fi
-
-  local instance_id eip rds_endpoint postgres_template
-  instance_id="$(tf_output ec2_instance_id)"
-  eip="$(tf_output ec2_public_ip)"
-  rds_endpoint="$(tf_output rds_endpoint)"
-  postgres_template="$(tf_output postgres_url_template)"
+cmd_k3s_guide() {
+  phase "3 — K3s and Rancher"
+  load_domain_config
+  local instance_id
+  instance_id="$(tf_output ec2_instance_id 2>/dev/null || echo 'i-xxxxxxxx')"
 
   cat <<EOF
 
-Connect to EC2 (SSM — no SSH key required):
+Connect to EC2:
 
   aws ssm start-session --target ${instance_id}
 
-On the EC2 instance:
+Install K3s:
 
-  sudo mkdir -p /opt/authengine
-  sudo cp ${COMPOSE_DIR}/env.prod.example /opt/authengine/.env
-  sudo nano /opt/authengine/.env
-  sudo chmod 600 /opt/authengine/.env
+  curl -sfL https://get.k3s.io | sh -
+  sudo k3s kubectl get nodes
 
-Fill in these values:
+Install Helm:
 
-  EC2 Elastic IP:     ${eip}
-  RDS endpoint:       ${rds_endpoint}
-  POSTGRES_URL:       ${postgres_template}
-  MONGODB_URL:        <MongoDB Atlas M0 — must include /authengine in path>
-  REDIS_URL:          <Upstash rediss:// URL>
-  SECRET_KEY:         openssl rand -hex 32
-  JWT_SECRET_KEY:     openssl rand -hex 32
-  SUPERADMIN_EMAIL / SUPERADMIN_PASSWORD
-  OAuth client IDs and secrets
-  SMS_GATEWAY_USERNAME / SMS_GATEWAY_PASSWORD
+  curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+  chmod 700 get_helm.sh && ./get_helm.sh
 
-Optional OIDC RS256 key:
+Install cert-manager + Rancher (DNS for rancher.${ROOT_DOMAIN} must point to EC2 first):
 
-  sudo openssl genrsa -out /opt/authengine/oidc_private.pem 2048
-  UID=\$(docker run --rm qniranjan01/authengine:latest id -u authengine)
-  sudo chown \$UID:\$UID /opt/authengine/oidc_private.pem
-  sudo chmod 400 /opt/authengine/oidc_private.pem
+  export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+  helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
+  helm repo add jetstack https://charts.jetstack.io && helm repo update
+  helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set installCRDs=true
+  helm install rancher rancher-latest/rancher --namespace cattle-system --create-namespace \\
+    --set hostname=rancher.${ROOT_DOMAIN} --set replicas=1 --set bootstrapPassword=admin
 
-Or copy a local key:
+Open https://rancher.${ROOT_DOMAIN} and change the bootstrap password.
 
-  scp deploy/oidc.pem ec2-user@${eip}:/tmp/oidc_private.pem
-  # then move + chown on EC2
+Full guide: https://docs.authengine.org/deployment/
 
 EOF
+}
+
+cmd_helm_values() {
+  phase "4a — Helm values checklist"
+  load_domain_config
+
+  cat <<EOF
+
+Create a prod override file (do not commit secrets):
+
+  cd ${HELM_DIR}
+  cp values.yaml prod-values.yaml
+
+Set at minimum:
+
+  global.domain: ${ROOT_DOMAIN}
+  secrets.postgresPassword, mongoPassword, redisPassword
+  secrets.secretKey, jwtSecretKey  (openssl rand -hex 32)
+  secrets.resendApiKey              (Resend — recommended for email)
+  seed.enabled: true                (first deploy only)
+  seed.superadminEmail / superadminPassword
+
+Production URLs (set automatically by the chart from global.*):
+
+  APP_URL=https://${IDP_HOST}
+  DASHBOARD_URL=https://${APP_HOST}
+
+Install:
+
+  helm install authengine . --namespace ${HELM_NAMESPACE} --create-namespace -f prod-values.yaml
+
+EOF
+}
+
+cmd_helm_install() {
+  phase "4 — Helm install"
+  require_cmd helm
+  if [[ ! -f "${HELM_DIR}/Chart.yaml" ]]; then
+    err "Helm chart not found: ${HELM_DIR}"
+    exit 1
+  fi
+  cmd_helm_values
+  if ! confirm "Run helm install now (requires kubectl context)?"; then
+    warn "Skipped — run manually when kubeconfig is ready"
+    return 0
+  fi
+  helm install authengine "${HELM_DIR}" \
+    --namespace "${HELM_NAMESPACE}" \
+    --create-namespace \
+    ${HELM_VALUES_FILE:+-f "${HELM_VALUES_FILE}"}
+  ok "Helm release installed. Check: kubectl -n ${HELM_NAMESPACE} get pods"
+}
+
+k8s_kubectl_ssm() {
+  local comment="$1"
+  shift
+  local instance_id
+  instance_id="$(tf_output ec2_instance_id)"
+  if [[ -z "${instance_id}" ]]; then
+    err "ec2_instance_id not in Terraform state"
+    return 1
+  fi
+  run_ssm_command "${instance_id}" "${comment}" \
+    "export KUBECONFIG=/etc/rancher/k3s/k3s.yaml" \
+    "$@"
+}
+
+cmd_k8s_migrate() {
+  phase "Migrate — auth-engine migrate in api pod"
+  if ! tf_state_ready; then
+    err "No Terraform state found. Run: $0 apply"
+    exit 1
+  fi
+  if ! confirm "Run auth-engine migrate via kubectl on EC2?"; then
+    warn "Skipped"
+    return 0
+  fi
+  k8s_kubectl_ssm "auth-engine-k8s-migrate" \
+    "kubectl -n ${HELM_NAMESPACE} exec deployment/api -- auth-engine migrate"
+}
+
+cmd_k8s_seed() {
+  phase "Seed — auth-engine-data all via kubectl Job"
+  if ! tf_state_ready; then
+    err "No Terraform state found. Run: $0 apply"
+    exit 1
+  fi
+  warn "Requires SUPERADMIN_EMAIL/PASSWORD — set seed.* in Helm values or pass env to Job"
+  if ! confirm "Run seed Job on cluster via SSM?"; then
+    warn "Skipped — or enable seed.enabled in Helm values and helm upgrade"
+    return 0
+  fi
+  k8s_kubectl_ssm "auth-engine-k8s-seed" \
+    "kubectl -n ${HELM_NAMESPACE} delete job authengine-seed --ignore-not-found=true" \
+    "helm upgrade authengine ${HELM_DIR} --namespace ${HELM_NAMESPACE} --reuse-values --set seed.enabled=true"
+}
+
+cmd_ec2_env() {
+  warn "Deprecated: production uses Helm/K3s, not /opt/authengine/.env on EC2."
+  cmd_helm_values
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -450,111 +523,22 @@ run_ssm_command() {
 }
 
 cmd_ec2_sync_compose() {
-  phase "3b — Sync compose files to EC2"
-  if ! tf_state_ready; then
-    err "No Terraform state found. Run: $0 apply"
-    exit 1
-  fi
-
-  local instance_id compose_b64 env_b64
-  instance_id="$(tf_output ec2_instance_id)"
-  compose_b64="$(file_b64 "${COMPOSE_DIR}/docker-compose.prod.yml")"
-  env_b64="$(file_b64 "${COMPOSE_DIR}/env.prod.example")"
-
-  log "Instance: ${instance_id}"
-  log "Copying docker-compose.prod.yml and env.prod.example → /opt/authengine/"
-
-  run_ssm_command "${instance_id}" "auth-engine-sync-compose" \
-    "set -euo pipefail" \
-    "mkdir -p /opt/authengine/compose" \
-    "echo '${compose_b64}' | base64 -d > /opt/authengine/compose/docker-compose.prod.yml" \
-    "echo '${env_b64}' | base64 -d > /opt/authengine/env.prod.example" \
-    "if [[ ! -f /opt/authengine/.env ]]; then cp /opt/authengine/env.prod.example /opt/authengine/.env && chmod 600 /opt/authengine/.env; fi" \
-    "ls -la /opt/authengine /opt/authengine/compose"
-
-  ok "Files on EC2:"
-  log "  /opt/authengine/compose/docker-compose.prod.yml"
-  log "  /opt/authengine/env.prod.example"
-  warn "Edit /opt/authengine/.env on EC2 before ec2-deploy (SSM: aws ssm start-session --target ${instance_id})"
+  warn "Deprecated: production uses Helm on K3s. Local dev: cd compose && docker compose up -d"
 }
 
 cmd_ec2_deploy() {
-  phase "4 — Start containers on EC2"
-  if ! tf_state_ready; then
-    err "No Terraform state found. Run: $0 apply"
-    exit 1
-  fi
-
-  local instance_id
-  instance_id="$(tf_output ec2_instance_id)"
-
-  log "Instance: ${instance_id}"
-  log "Images: qniranjan01/authengine:latest, qniranjan01/authengine-dashboard:latest"
-
-  if ! confirm "Pull and start containers on EC2 via SSM?"; then
-    warn "Skipped"
-    return 0
-  fi
-
-  # Sync compose manifest to EC2 and start containers
-  local compose_b64
-  compose_b64="$(file_b64 "${COMPOSE_DIR}/docker-compose.prod.yml")"
-
-  run_ssm_command "${instance_id}" "auth-engine-deploy-containers" \
-    "set -euo pipefail" \
-    "${ensure_docker_compose_ssm_cmd}" \
-    "mkdir -p /opt/authengine/compose" \
-    "echo '${compose_b64}' | base64 -d > /opt/authengine/compose/docker-compose.prod.yml" \
-    "cd /opt/authengine/compose" \
-    "export ENV_FILE=/opt/authengine/.env" \
-    "export OIDC_PRIVATE_KEY_PATH=/opt/authengine/oidc_private.pem" \
-    "docker compose --env-file /opt/authengine/.env -f docker-compose.prod.yml pull" \
-    "docker compose --env-file /opt/authengine/.env -f docker-compose.prod.yml up -d" \
-    "docker compose --env-file /opt/authengine/.env -f docker-compose.prod.yml ps"
+  warn "Deprecated: use helm-install or Rancher UI to deploy workloads."
+  cmd_helm_install
 }
 
 cmd_ec2_migrate() {
-  phase "4b — Database migrations"
-  if ! tf_state_ready; then
-    err "No Terraform state found. Run: $0 apply"
-    exit 1
-  fi
-
-  local instance_id
-  instance_id="$(tf_output ec2_instance_id)"
-
-  if ! confirm "Run auth-engine migrate on EC2?"; then
-    warn "Skipped"
-    return 0
-  fi
-
-  run_ssm_command "${instance_id}" "auth-engine-migrate" \
-    "docker exec authengine-api auth-engine migrate"
+  warn "Deprecated: use k8s-migrate"
+  cmd_k8s_migrate
 }
 
 cmd_ec2_seed() {
-  phase "4c — Seed roles and super admin"
-  if ! tf_state_ready; then
-    err "No Terraform state found. Run: $0 apply"
-    exit 1
-  fi
-
-  local instance_id
-  instance_id="$(tf_output ec2_instance_id)"
-
-  warn "Seeding requires SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD in /opt/authengine/.env"
-  warn "Run only after migrate. RDS is private — seeding runs on EC2, not your laptop."
-
-  if ! confirm "Seed roles + super admin on EC2 via SSM?"; then
-    warn "Skipped"
-    return 0
-  fi
-
-  # Clone auth-engine + auth-engine-data in a one-off container; reuse /opt/authengine/.env
-  run_ssm_command "${instance_id}" "auth-engine-seed" \
-    "set -euo pipefail" \
-    "test -f /opt/authengine/.env" \
-    "docker run --rm -v /opt/authengine/.env:/seed/.env.local:ro python:3.12-slim-bookworm bash -lc 'set -e; apt-get update -qq && apt-get install -y -qq git curl ca-certificates; curl -LsSf https://astral.sh/uv/install.sh | sh; export PATH=\"/root/.local/bin:\$PATH\"; git clone --depth 1 https://github.com/${GITHUB_ORG}/auth-engine.git /tmp/auth-engine; git clone --depth 1 https://github.com/${GITHUB_ORG}/auth-engine-data.git /tmp/auth-engine-data; cp /seed/.env.local /tmp/auth-engine-data/.env.local; cd /tmp/auth-engine-data && uv sync && uv run auth-engine-data all'"
+  warn "Deprecated: use k8s-seed or seed.enabled in Helm values"
+  cmd_k8s_seed
 }
 
 cmd_seed() {
@@ -584,7 +568,7 @@ cmd_seed() {
     fi
   fi
 
-  warn "For production RDS, use ec2-seed (RDS is not reachable from your laptop)."
+  warn "For production K8s, use k8s-seed or seed.enabled in Helm values."
   if ! confirm "Run auth-engine-data all locally?"; then
     warn "Skipped"
     return 0
@@ -599,8 +583,13 @@ cmd_seed() {
 # Phase 5 — nginx + TLS
 # ─────────────────────────────────────────────────────────────────────────────
 
+cmd_nginx() {
+  warn "Deprecated: TLS is handled by cert-manager + Ingress on K3s, not nginx on EC2."
+  cmd_nginx_manual
+}
+
 cmd_nginx_manual() {
-  phase "5 — nginx and TLS (manual on EC2)"
+  warn "Deprecated for production. Use Helm ingress + cert-manager (see k3s-guide)."
   load_domain_config
   cat <<EOF
 
@@ -652,63 +641,6 @@ Full guide: auth-engine-docs/docs/deployment.md
 EOF
 }
 
-cmd_nginx() {
-  phase "5 — nginx and TLS on EC2"
-  if ! tf_state_ready; then
-    err "No Terraform state found. Run: $0 apply"
-    exit 1
-  fi
-  if ! command -v aws >/dev/null 2>&1; then
-    err "AWS CLI required. Run: $0 nginx-manual"
-    exit 1
-  fi
-
-  local instance_id nginx_b64
-  instance_id="$(tf_output ec2_instance_id)"
-  load_domain_config
-
-  log "Instance: ${instance_id}"
-  log "Domains: ${API_HOST}, ${IDP_HOST}, ${APP_HOST}, ${ROOT_DOMAIN}, www.${ROOT_DOMAIN}"
-  warn "DNS A records must point to $(tf_output ec2_public_ip) before certbot can succeed"
-
-  if ! confirm "Install nginx + certbot on EC2 and issue TLS certificates via SSM?"; then
-    warn "Skipped — run '$0 nginx-manual' for manual steps"
-    return 0
-  fi
-
-  local rendered
-  rendered="$(mktemp)"
-  render_nginx_conf "${rendered}"
-  nginx_b64="$(file_b64 "${rendered}")"
-  rm -f "${rendered}"
-
-  run_ssm_command "${instance_id}" "auth-engine-nginx-tls" \
-    "set -euo pipefail" \
-    "dnf install -y nginx certbot python3-certbot-nginx" \
-    "systemctl enable nginx" \
-    "mkdir -p /etc/nginx/conf.d" \
-    "[ -f /etc/nginx/conf.d/default.conf ] && mv /etc/nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf.bak || true" \
-    "echo '${nginx_b64}' | base64 -d > /etc/nginx/conf.d/authengine.conf" \
-    "nginx -t" \
-    "systemctl start nginx || true" \
-    "systemctl reload nginx" \
-    "CERT_EMAIL=\"${CERTBOT_EMAIL:-}\"" \
-    "if [ -z \"\${CERT_EMAIL}\" ] && [ -f /opt/authengine/.env ]; then CERT_EMAIL=\$(grep -E '^SUPERADMIN_EMAIL=' /opt/authengine/.env | cut -d= -f2- | tr -d '\"' | head -1); fi" \
-    "if [ -z \"\${CERT_EMAIL}\" ] && [ -f /opt/authengine/.env ]; then CERT_EMAIL=\$(grep -E '^EMAIL_SENDER=' /opt/authengine/.env | cut -d= -f2- | tr -d '\"' | head -1); fi" \
-    "if [ -z \"\${CERT_EMAIL}\" ]; then CERT_EMAIL=\"noreply@${ROOT_DOMAIN}\"; fi" \
-    "echo \"Using certbot email: \${CERT_EMAIL}\" >&2" \
-    "if certbot certificates 2>/dev/null | grep -q 'Certificate Name: ${ROOT_DOMAIN}'; then certbot renew --quiet; else certbot --nginx -d ${API_HOST} -d ${IDP_HOST} -d ${APP_HOST} -d ${ROOT_DOMAIN} -d www.${ROOT_DOMAIN} --cert-name ${ROOT_DOMAIN} --non-interactive --agree-tos --email \"\${CERT_EMAIL}\" --redirect --no-eff-email; fi" \
-    "nginx -t" \
-    "systemctl reload nginx" \
-    "curl -fsS -o /dev/null -w 'api:%{http_code}\\n' http://127.0.0.1:8000/api/v1/health || true" \
-    "curl -fsS -o /dev/null -w 'nginx-api:%{http_code}\\n' -H 'Host: ${API_HOST}' http://127.0.0.1/api/v1/health || true"
-
-  ok "nginx + TLS configured on EC2"
-  log "Verify: curl -I https://${API_HOST}/api/v1/health"
-  log "         curl -I https://${APP_HOST}"
-  log "         curl -I https://${ROOT_DOMAIN}"
-}
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Phase 6–8 — Checklists
 # ─────────────────────────────────────────────────────────────────────────────
@@ -728,36 +660,33 @@ EOF
 }
 
 cmd_cicd() {
-  phase "7 — CI/CD (auto-deploy on merge to main)"
+  phase "7 — CI/CD (build images; redeploy in Rancher)"
   cat <<EOF
 
 Merge to \`main\` in each app repo triggers:
 
-  0-ci (lint) → 1-build-push (Docker Hub :latest) → 4-deploy (EC2 via SSM)
+  0-ci (lint) → 1-build-push (Docker Hub :latest)
 
-| Repo | 4-deploy does |
-|------|----------------|
-| auth-engine | pull + recreate \`api\`, run \`auth-engine migrate\` |
-| auth-engine-dashboard | pull + recreate \`frontend\` |
+There is **no** automatic cluster deploy. After a new image is pushed:
 
-One-time GitHub setup (both repos — Settings → Secrets and variables):
+| Repo | Redeploy |
+|------|----------|
+| auth-engine | Rancher → \`api\` workload → Redeploy (or \`kubectl rollout restart deployment/api -n ${HELM_NAMESPACE}\`) |
+| auth-engine-dashboard | Rancher → \`dashboard\` workload → Redeploy |
 
-Secrets:
+After API releases, run migrations:
+
+  ./deploy/auth-engine-deploy.sh k8s-migrate
+
+GitHub secrets (both app repos):
+
   DOCKERHUB_USERNAME, DOCKERHUB_TOKEN
-  AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 
-Variables:
-  EC2_INSTANCE_ID = $(tf_output ec2_instance_id 2>/dev/null || echo 'i-xxxxxxxx')
-  AWS_REGION = ap-south-1
+First deploy only — enable seed in Helm values or run:
 
-IAM user for deploy needs: ssm:SendCommand, ssm:GetCommandInvocation on the EC2 instance.
+  ./deploy/auth-engine-deploy.sh k8s-seed
 
-Manual deploy (same as CI):
-  ./deploy/auth-engine-deploy.sh ec2-deploy
-  ./deploy/auth-engine-deploy.sh ec2-migrate   # API releases only
-
-First deploy only:
-  ./deploy/auth-engine-deploy.sh ec2-seed
+Full guide: https://docs.authengine.org/deployment/
 
 EOF
 }
@@ -766,12 +695,12 @@ cmd_docs() {
   phase "8 — Documentation site (docs.authengine.org)"
   cat <<'EOF'
 
-Docs are served from GitHub Pages — NOT from EC2.
+Docs are in the **auth-engine-docs** repository — served from GitHub Pages, NOT from EC2.
 
-1. auth-engine-infra Settings → Pages → Source: GitHub Actions
-2. Run workflow: auth-engine-infra · Deploy docs
-3. Custom domain: docs.authengine.org
-4. DNS: CNAME docs → <your-github-pages-host>
+1. auth-engine-docs Settings → Pages → Source: GitHub Actions
+2. Run workflow: auth-engine-docs · Deploy docs (workflow_dispatch)
+3. Custom domain: docs.authengine.org (docs/CNAME in repo)
+4. DNS: CNAME docs → auth-engine.github.io
 5. Enable "Enforce HTTPS" in Pages settings
 
 Do NOT run certbot for docs on EC2.
@@ -842,38 +771,27 @@ cmd_all() {
 
   cmd_outputs
   cmd_dns
-  cmd_ses_dns
 
-  phase "3 — EC2 environment"
-  cmd_ec2_env
-  if ! confirm "Have you configured /opt/authengine/.env on EC2?"; then
-    warn "Configure .env before continuing. Run '$0 ec2-env' for instructions."
+  cmd_k3s_guide
+  if ! confirm "Have you installed K3s and Rancher on EC2?"; then
+    warn "Complete K3s/Rancher setup before continuing."
     return 0
   fi
 
-  if command -v aws >/dev/null 2>&1 && aws_cli sts get-caller-identity >/dev/null 2>&1; then
-    if confirm "Deploy containers on EC2 via SSM?"; then
-      cmd_ec2_deploy
-    fi
-    if confirm "Run database migrations on EC2?"; then
-      cmd_ec2_migrate
-    fi
-    if confirm "Seed roles and super admin on EC2 (first deploy only)?"; then
-      cmd_ec2_seed
-    fi
-  else
-    warn "AWS CLI unavailable — run container steps manually on EC2"
+  cmd_helm_values
+  if command -v helm >/dev/null 2>&1 && confirm "Run helm install now?"; then
+    cmd_helm_install
   fi
 
   if command -v aws >/dev/null 2>&1 && aws_cli sts get-caller-identity >/dev/null 2>&1; then
-    warn "Ensure DNS A records are live before nginx/certbot"
-    if confirm "Install nginx + TLS on EC2 via SSM?"; then
-      cmd_nginx
-    else
-      cmd_nginx_manual
+    if confirm "Run k8s migrate via SSM?"; then
+      cmd_k8s_migrate
+    fi
+    if confirm "Seed roles and super admin (first deploy only)?"; then
+      cmd_k8s_seed
     fi
   else
-    cmd_nginx_manual
+    warn "AWS CLI unavailable — run k8s-migrate and k8s-seed manually"
   fi
 
   cmd_oauth
@@ -899,25 +817,23 @@ Terraform:
   outputs     Show and save Terraform outputs
 
 Infrastructure setup:
-  dns         DNS A/CNAME records for EC2
-  ses-dns     SES verification DNS records
-  ec2-env     EC2 /opt/authengine/.env setup guide
-  ec2-sync-compose  Copy compose + env template to EC2 (SSM)
+  dns           DNS A/CNAME records for EC2 + docs
+  k3s-guide     K3s + Rancher + cert-manager install steps
+  helm-values   Helm secrets checklist
+  helm-install  Install authengine Helm chart
 
-Application deploy (requires AWS CLI + SSM):
-  ec2-deploy  Pull images and start Docker containers on EC2
-  ec2-migrate Run auth-engine migrate on EC2
-  ec2-seed    Seed roles + super admin on EC2 (after migrate)
-  seed        Seed locally via auth-engine-data (local compose only)
+Kubernetes (requires AWS CLI + SSM + K3s on EC2):
+  k8s-migrate   Run auth-engine migrate in api pod
+  k8s-seed      Enable/run seed Job (roles + super admin)
+  seed          Seed locally via auth-engine-data (compose dev)
 
-TLS + reverse proxy (requires AWS CLI + SSM):
-  nginx       Install nginx + certbot on EC2 and issue TLS certs
-  nginx-manual  Print manual nginx + certbot steps
+Deprecated (legacy Compose/EC2):
+  ses-dns, ec2-env, ec2-sync-compose, ec2-deploy, ec2-migrate, ec2-seed, nginx, nginx-manual
 
 Manual checklists:
-  oauth       OAuth redirect URI checklist
-  cicd        CI/CD release order
-  docs        GitHub Pages docs setup
+  oauth         OAuth redirect URI checklist
+  cicd          CI/CD (build + Rancher redeploy)
+  docs          GitHub Pages docs setup (auth-engine-docs)
 
 Verification:
   verify      Curl production endpoints
@@ -928,15 +844,16 @@ All phases:
 Environment:
   TF_DIR=${TF_DIR}
   TFVARS_FILE=${TFVARS_FILE}
-  AWS_PROFILE, AWS_REGION, TF_VAR_db_password
-  AUTH_ENGINE_DATA_DIR, GITHUB_ORG, CERTBOT_EMAIL
+  AWS_PROFILE, AWS_REGION, HELM_NAMESPACE, HELM_VALUES_FILE
+  AUTH_ENGINE_DATA_DIR, GITHUB_ORG
   SKIP_CONFIRM=1, TF_AUTO_APPROVE=1
 
 Examples:
   $(basename "$0") plan
   $(basename "$0") apply
+  $(basename "$0") k3s-guide
+  HELM_VALUES_FILE=helm/authengine/prod-values.yaml $(basename "$0") helm-install
   $(basename "$0") all
-  TF_VAR_db_password=\$(openssl rand -base64 24) $(basename "$0") terraform
 
 EOF
 }
@@ -952,6 +869,11 @@ main() {
     outputs)     cmd_outputs "$@" ;;
     dns)         cmd_dns "$@" ;;
     ses-dns)     cmd_ses_dns "$@" ;;
+    k3s-guide)   cmd_k3s_guide "$@" ;;
+    helm-values) cmd_helm_values "$@" ;;
+    helm-install) cmd_helm_install "$@" ;;
+    k8s-migrate) cmd_k8s_migrate "$@" ;;
+    k8s-seed)    cmd_k8s_seed "$@" ;;
     ec2-env)     cmd_ec2_env "$@" ;;
     ec2-sync-compose) cmd_ec2_sync_compose "$@" ;;
     ec2-deploy)  cmd_ec2_deploy "$@" ;;
